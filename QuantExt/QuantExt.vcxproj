@@ -575,6 +575,7 @@
     <ClInclude Include="qle\indexes\ibor\audbbsw.hpp" />
     <ClInclude Include="qle\indexes\ibor\brlcdi.hpp" />
     <ClInclude Include="qle\indexes\ibor\boebaserate.hpp" />
+    <ClInclude Include="qle\indexes\ibor\brldi.hpp" />
     <ClInclude Include="qle\indexes\ibor\chfsaron.hpp" />
     <ClInclude Include="qle\indexes\ibor\chftois.hpp" />
     <ClInclude Include="qle\indexes\ibor\clpcamara.hpp" />
@@ -589,6 +590,7 @@
     <ClInclude Include="qle\indexes\ibor\dkkcita.hpp" />
     <ClInclude Include="qle\indexes\ibor\dkkois.hpp" />
     <ClInclude Include="qle\indexes\ibor\ester.hpp" />
+    <ClInclude Include="qle\indexes\ibor\govar.hpp" />
     <ClInclude Include="qle\indexes\ibor\jpyeytibor.hpp" />
     <ClInclude Include="qle\indexes\ibor\hkdhibor.hpp" />
     <ClInclude Include="qle\indexes\ibor\hkdhonia.hpp" />
@@ -609,6 +611,7 @@
     <ClInclude Include="qle\indexes\ibor\plnpolonia.hpp" />
     <ClInclude Include="qle\indexes\ibor\plnwibor.hpp" />
     <ClInclude Include="qle\indexes\ibor\primeindex.hpp" />
+    <ClInclude Include="qle\indexes\ibor\reibor.hpp" />
     <ClInclude Include="qle\indexes\ibor\rubmosprime.hpp" />
     <ClInclude Include="qle\indexes\ibor\rubkeyrate.hpp" />
     <ClInclude Include="qle\indexes\ibor\saibor.hpp" />
