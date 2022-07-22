@@ -34,7 +34,6 @@
 
 namespace QuantExt {
 using namespace QuantLib;
-using namespace QuantExt;
 
 typedef Lgm1fParametrization<DefaultProbabilityTermStructure> CrLgm1fParametrization;
 

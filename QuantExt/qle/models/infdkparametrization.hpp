@@ -33,7 +33,6 @@
 
 namespace QuantExt {
 using namespace QuantLib;
-using namespace QuantExt;
 
 typedef Lgm1fParametrization<ZeroInflationTermStructure> InfDkParametrization;
 
