@@ -57,11 +57,11 @@ void CSA::invertCSA() {
     if (initialMarginType_ != Bilateral) {
         initialMarginType_ = (initialMarginType_ == CallOnly ? PostOnly : CallOnly);
     }
-    std::swap<Real>(collatSpreadPay_, collatSpreadRcv_);
-    std::swap<Real>(thresholdPay_, thresholdRcv_);
-    std::swap<Real>(mtaPay_, mtaRcv_);
+    std::swap(collatSpreadPay_, collatSpreadRcv_);
+    std::swap(thresholdPay_, thresholdRcv_);
+    std::swap(mtaPay_, mtaRcv_);
     iaHeld_ *= -1;
-    std::swap<Period>(marginCallFreq_, marginPostFreq_);
+    std::swap(marginCallFreq_, marginPostFreq_);
 }
 
 void CSA::validate() {
@@ -233,6 +233,7 @@ XMLNode* NettingSetDefinition::toXML(XMLDocument& doc) {
 
         XMLUtils::addChild(doc, csaSubNode, "Bilateral", to_string(csa_->type()));
         XMLUtils::addChild(doc, csaSubNode, "CSACurrency", csa_->csaCurrency());
+        XMLUtils::addChild(doc, csaSubNode, "Index", csa_->index());
         XMLUtils::addChild(doc, csaSubNode, "ThresholdPay", csa_->thresholdPay());
         XMLUtils::addChild(doc, csaSubNode, "ThresholdReceive", csa_->thresholdRcv());
         XMLUtils::addChild(doc, csaSubNode, "MinimumTransferAmountPay", csa_->mtaPay());
