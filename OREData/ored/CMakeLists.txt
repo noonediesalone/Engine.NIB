@@ -156,6 +156,7 @@ portfolio/builders/fxtouchoption.cpp
 portfolio/builders/indexcreditdefaultswap.cpp
 portfolio/builders/indexcreditdefaultswapoption.cpp
 portfolio/builders/multilegoption.cpp
+portfolio/builders/prdc.cpp
 portfolio/builders/quantoequityoption.cpp
 portfolio/builders/swap.cpp
 portfolio/builders/swaption.cpp
@@ -447,6 +448,7 @@ portfolio/builders/fxtouchoption.hpp
 portfolio/builders/indexcreditdefaultswap.hpp
 portfolio/builders/indexcreditdefaultswapoption.hpp
 portfolio/builders/multilegoption.hpp
+portfolio/builders/prdc.hpp
 portfolio/builders/quantoequityoption.hpp
 portfolio/builders/quantovanillaoption.hpp
 portfolio/builders/swap.hpp

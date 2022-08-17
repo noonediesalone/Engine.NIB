@@ -83,6 +83,7 @@
 #include <ored/portfolio/builders/indexcreditdefaultswap.hpp>
 #include <ored/portfolio/builders/indexcreditdefaultswapoption.hpp>
 #include <ored/portfolio/builders/multilegoption.hpp>
+#include <ored/portfolio/builders/prdc.hpp>
 #include <ored/portfolio/builders/quantoequityoption.hpp>
 #include <ored/portfolio/builders/quantovanillaoption.hpp>
 #include <ored/portfolio/builders/swap.hpp>
@@ -283,6 +284,7 @@ void initBuilders() {
     ORE_REGISTER_LEGBUILDER("DigitalCMSSpreadLegBuilder", DigitalCMSSpreadLegBuilder, false)
     ORE_REGISTER_LEGBUILDER("EquityLegBuilder", EquityLegBuilder, false)
     ORE_REGISTER_LEGBUILDER("EquityMarginLegBuilder", EquityMarginLegBuilder, false)
+    ORE_REGISTER_LEGBUILDER("PRDCLegBuilder", PRDCLegBuilder, false)
 
     ORE_REGISTER_AMC_ENGINE_BUILDER(CamAmcCurrencySwapEngineBuilder, false)
     ORE_REGISTER_AMC_ENGINE_BUILDER(LgmAmcBermudanSwaptionEngineBuilder, false)
@@ -383,6 +385,7 @@ void initBuilders() {
     ORE_REGISTER_ENGINE_BUILDER(FxEuropeanCSOptionEngineBuilder, false)
     ORE_REGISTER_ENGINE_BUILDER(FxAmericanOptionFDEngineBuilder, false)
     ORE_REGISTER_ENGINE_BUILDER(FxAmericanOptionBAWEngineBuilder, false)
+    ORE_REGISTER_ENGINE_BUILDER(CamPrdcCouponPricerBuilder, false)
 }
 
 } // namespace ore::data

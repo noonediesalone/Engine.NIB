@@ -234,6 +234,30 @@ Leg DigitalCMSSpreadLegBuilder::buildLeg(const LegData& data, const boost::share
     return result;
 }
 
+Leg PRDCLegBuilder::buildLeg(const LegData& data, const boost::shared_ptr<EngineFactory>& engineFactory,
+                             RequiredFixings& requiredFixings, const string& configuration,
+                             const QuantLib::Date& openEndDateReplacement) const {
+    auto prdcData = boost::dynamic_pointer_cast<PRDCLegData>(data.concreteLegData());
+    QL_REQUIRE(prdcData, "Wrong LegType, expected PRDC");
+
+    auto tmp = parseFxIndex(prdcData->fxIndex());
+    Currency ccy1 = tmp->targetCurrency();
+    Currency ccy2 = tmp->sourceCurrency();
+    QL_REQUIRE(ccy1.code() == data.currency() || ccy2.code() == data.currency(),
+               "applyIndexing: fx index '" << prdcData->fxIndex() << "' ccys do not match leg ccy (" << data.currency()
+                                           << ")");
+    std::string domestic = data.currency();
+    std::string foreign = ccy1.code() == domestic ? ccy2.code() : ccy1.code();
+    auto fxIndex = buildFxIndex(prdcData->fxIndex(), domestic, foreign,
+                                engineFactory->market(), configuration, true);
+
+    Leg result = makePRDCLeg(data, fxIndex, engineFactory, true, openEndDateReplacement);
+    addToRequiredFixings(
+        result, boost::make_shared<FixingDateGetter>(requiredFixings,
+                                                     std::map<string, string>{{fxIndex->name(), prdcData->fxIndex()}}));
+    return result;
+}
+
 Leg EquityLegBuilder::buildLeg(const LegData& data, const boost::shared_ptr<EngineFactory>& engineFactory,
                                RequiredFixings& requiredFixings, const string& configuration,
                                const QuantLib::Date& openEndDateReplacement, const bool useXbsCurves) const {

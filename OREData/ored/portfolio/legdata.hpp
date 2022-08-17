@@ -739,6 +739,69 @@ private:
     bool nakedOption_;
 };
 
+//! Serializable PRDC Leg Data
+/*!
+\ingroup tradedata
+*/
+class PRDCLegData : public LegAdditionalData {
+public:
+    //! Default constructor
+    PRDCLegData() : LegAdditionalData("PRDC"), fixingDays_(Null<Size>()), nakedOption_(false) {}
+    //! Constructor
+    PRDCLegData(const string& fxIndex, const string& fixingCalendar,
+                const string& fixingConvention, Size fixingDays, const vector<double>& domesticRates = vector<double>(),
+                const vector<string>& domesticDates = vector<string>(),
+                const vector<double>& foreignRates = vector<double>(),
+                const vector<string>& foreignDates = vector<string>(), const vector<double>& caps = vector<double>(),
+                const vector<string>& capDates = vector<string>(), const vector<double>& floors = vector<double>(),
+                const vector<string>& floorDates = vector<string>(), bool nakedOption = false)
+        : LegAdditionalData("PRDC"), fxIndex_(fxIndex), fixingConvention_(fixingConvention),
+          fixingCalendar_(fixingCalendar), fixingDays_(fixingDays),
+          domesticRates_(domesticRates), domesticDates_(domesticDates), foreignRates_(foreignRates),
+          foreignDates_(foreignDates), caps_(caps), capDates_(capDates), floors_(floors), floorDates_(floorDates),
+          nakedOption_(nakedOption) {}
+
+    //! \name Inspectors
+    //@{
+    const string& fxIndex() const { return fxIndex_; }
+    const std::string& fixingConvention() const { return fixingConvention_; }
+    const std::string& fixingCalendar() const { return fixingCalendar_; }
+    Size fixingDays() const { return fixingDays_; }
+    const vector<double>& domesticRates() const { return domesticRates_; }
+    const vector<string>& domesticDates() const { return domesticDates_; }
+    const vector<double>& foreignRates() const { return foreignRates_; }
+    const vector<string>& foreignDates() const { return foreignDates_; }
+    const vector<double>& caps() const { return caps_; }
+    const vector<string>& capDates() const { return capDates_; }
+    const vector<double>& floors() const { return floors_; }
+    const vector<string>& floorDates() const { return floorDates_; }
+    bool nakedOption() const { return nakedOption_; }
+    //@}
+
+    //! \name Serialisation
+    //@{
+    virtual void fromXML(XMLNode* node) override;
+    virtual XMLNode* toXML(XMLDocument& doc) override;
+    //@}
+private:
+    string fxIndex_;
+    string fixingConvention_;
+    string fixingCalendar_;
+    Size fixingDays_;
+    vector<double> domesticRates_;
+    vector<string> domesticDates_;
+    vector<double> foreignRates_;
+    vector<string> foreignDates_;
+    vector<double> caps_;
+    vector<string> capDates_;
+    vector<double> floors_;
+    vector<string> floorDates_;
+    bool nakedOption_;
+
+    static LegDataRegister<PRDCLegData> reg_;
+};
+
+
 //! Serializable Fixed Leg Data
 /*!
 \ingroup tradedata
@@ -978,6 +1041,9 @@ Leg makeCMSSpreadLeg(const LegData& data, const boost::shared_ptr<QuantLib::Swap
 Leg makeDigitalCMSSpreadLeg(const LegData& data, const boost::shared_ptr<QuantLib::SwapSpreadIndex>& swapSpreadIndex,
                             const boost::shared_ptr<EngineFactory>& engineFactory,
                             const QuantLib::Date& openEndDateReplacement = Null<Date>());
+Leg makePRDCLeg(const LegData& data, const boost::shared_ptr<QuantExt::FxIndex>& fxIndex,
+                const boost::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
+                const QuantLib::Date& openEndDateReplacement = Null<Date>());
 Leg makeEquityLeg(const LegData& data, const boost::shared_ptr<QuantExt::EquityIndex>& equityCurve,
                   const boost::shared_ptr<QuantExt::FxIndex>& fxIndex = nullptr,
                   const QuantLib::Date& openEndDateReplacement = Null<Date>());
