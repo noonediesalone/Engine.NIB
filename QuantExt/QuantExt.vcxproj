@@ -539,6 +539,7 @@
     <ClInclude Include="qle\cashflows\nonstandardyoyinflationcoupon.hpp" />
     <ClInclude Include="qle\cashflows\overnightindexedcoupon.hpp" />
     <ClInclude Include="qle\cashflows\blackovernightindexedcouponpricer.hpp" />
+    <ClInclude Include="qle\cashflows\prdccoupon.hpp" />
     <ClInclude Include="qle\cashflows\quantocouponpricer.hpp" />
     <ClInclude Include="qle\cashflows\strippedcapflooredcpicoupon.hpp" />
     <ClInclude Include="qle\cashflows\strippedcapflooredyoyinflationcoupon.hpp" />
@@ -951,6 +952,7 @@
     <ClCompile Include="qle\cashflows\nonstandardyoyinflationcoupon.cpp" />
     <ClCompile Include="qle\cashflows\overnightindexedcoupon.cpp" />
     <ClCompile Include="qle\cashflows\blackovernightindexedcouponpricer.cpp" />
+    <ClCompile Include="qle\cashflows\prdccoupon.cpp" />
     <ClCompile Include="qle\cashflows\quantocouponpricer.cpp" />
     <ClCompile Include="qle\cashflows\strippedcapflooredcpicoupon.cpp" />
     <ClCompile Include="qle\cashflows\strippedcapflooredyoyinflationcoupon.cpp" />

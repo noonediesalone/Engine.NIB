@@ -98,6 +98,7 @@ portfolio/builders/cms.cpp
 portfolio/builders/cmsspread.cpp
 portfolio/builders/cpicapfloor.cpp
 portfolio/builders/durationadjustedcms.cpp
+portfolio/builders/prdc.cpp
 portfolio/builders/swaption.cpp
 portfolio/builders/yoycapfloor.cpp
 portfolio/capfloor.cpp
@@ -309,6 +310,7 @@ portfolio/builders/fxforward.hpp
 portfolio/builders/fxoption.hpp
 portfolio/builders/quantoequityoption.hpp
 portfolio/builders/quantovanillaoption.hpp
+portfolio/builders/prdc.hpp
 portfolio/builders/swap.hpp
 portfolio/builders/swaption.hpp
 portfolio/builders/vanillaoption.hpp

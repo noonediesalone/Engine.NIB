@@ -17,7 +17,6 @@
 */
 
 #include <ored/portfolio/bond.hpp>
-#include <ored/portfolio/forwardbond.hpp>
 #include <ored/portfolio/builders/capflooredaverageonindexedcouponleg.hpp>
 #include <ored/portfolio/builders/capflooredcpileg.hpp>
 #include <ored/portfolio/builders/capfloorediborleg.hpp>
@@ -26,6 +25,8 @@
 #include <ored/portfolio/builders/capflooredyoyleg.hpp>
 #include <ored/portfolio/builders/cms.hpp>
 #include <ored/portfolio/builders/cmsspread.hpp>
+#include <ored/portfolio/builders/prdc.hpp>
+#include <ored/portfolio/forwardbond.hpp>
 #include <ored/portfolio/legdata.hpp>
 #include <ored/portfolio/referencedata.hpp>
 #include <ored/utilities/indexnametranslator.hpp>
@@ -34,8 +35,8 @@
 #include <ored/utilities/to_string.hpp>
 #include <ored/utilities/vectorutils.hpp>
 
-#include <boost/make_shared.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/make_shared.hpp>
 #include <ql/cashflow.hpp>
 #include <ql/cashflows/averagebmacoupon.hpp>
 #include <ql/cashflows/capflooredcoupon.hpp>
@@ -55,6 +56,7 @@
 #include <qle/cashflows/averageonindexedcoupon.hpp>
 #include <qle/cashflows/averageonindexedcouponpricer.hpp>
 #include <qle/cashflows/brlcdicouponpricer.hpp>
+#include <qle/cashflows/cmbcoupon.hpp>
 #include <qle/cashflows/couponpricer.hpp>
 #include <qle/cashflows/cpicoupon.hpp>
 #include <qle/cashflows/cpicouponpricer.hpp>
@@ -62,18 +64,18 @@
 #include <qle/cashflows/floatingannuitycoupon.hpp>
 #include <qle/cashflows/floatingratefxlinkednotionalcoupon.hpp>
 #include <qle/cashflows/indexedcoupon.hpp>
-#include <qle/cashflows/zerofixedcoupon.hpp>
 #include <qle/cashflows/nonstandardcapflooredyoyinflationcoupon.hpp>
 #include <qle/cashflows/overnightindexedcoupon.hpp>
+#include <qle/cashflows/prdccoupon.cpp>
 #include <qle/cashflows/strippedcapflooredcpicoupon.hpp>
 #include <qle/cashflows/strippedcapflooredyoyinflationcoupon.hpp>
 #include <qle/cashflows/subperiodscoupon.hpp>
 #include <qle/cashflows/subperiodscouponpricer.hpp>
 #include <qle/cashflows/yoyinflationcoupon.hpp>
-#include <qle/cashflows/cmbcoupon.hpp>
+#include <qle/cashflows/zerofixedcoupon.hpp>
 #include <qle/indexes/bmaindexwrapper.hpp>
-#include <qle/instruments/forwardbond.hpp>
 #include <qle/indexes/bondindex.hpp>
+#include <qle/instruments/forwardbond.hpp>
 
 using namespace QuantLib;
 using namespace QuantExt;
@@ -87,8 +89,8 @@ LegDataRegister<CashflowData> CashflowData::reg_("Cashflow");
 
 void CashflowData::fromXML(XMLNode* node) {
     // allow for empty Cashflow legs without any payments
-    if(node == nullptr)
-	return;
+    if (node == nullptr)
+        return;
     XMLUtils::checkNode(node, legNodeName());
     amounts_ =
         XMLUtils::getChildrenValuesWithAttributes<Real>(node, "Cashflow", "Amount", "date", dates_, &parseReal, false);
@@ -294,7 +296,7 @@ XMLNode* CPILegData::toXML(XMLDocument& doc) {
         XMLUtils::addChild(doc, node, "ObservationLag", observationLag_);
     }
     if (!interpolation_.empty()) {
-       XMLUtils::addChild(doc, node, "Interpolation", interpolation_);
+        XMLUtils::addChild(doc, node, "Interpolation", interpolation_);
     }
     XMLUtils::addChild(doc, node, "SubtractInflationNotional", subtractInflationNominal_);
     XMLUtils::addChild(doc, node, "SubtractInflationNotionalAllCoupons", subtractInflationNominalCoupons_);
@@ -419,7 +421,7 @@ LegDataRegister<CMBLegData> CMBLegData::reg_("CMB");
 void CMBLegData::fromXML(XMLNode* node) {
     XMLUtils::checkNode(node, legNodeName());
     genericBond_ = XMLUtils::getChildValue(node, "Index", true);
-    //indices_.insert(swapIndex_);
+    // indices_.insert(swapIndex_);
     // These are all optional
     spreads_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "Spreads", "Spread", "startDate", spreadDates_,
                                                                &parseReal);
@@ -594,6 +596,53 @@ void DigitalCMSSpreadLegData::fromXML(XMLNode* node) {
         putPayoffs_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "PutPayoffs", "Payoff", "startDate",
                                                                       putPayoffDates_, &parseReal);
     }
+}
+
+LegDataRegister<PRDCLegData> PRDCLegData::reg_("PRDC");
+
+XMLNode* PRDCLegData::toXML(XMLDocument& doc) {
+    XMLNode* node = doc.allocNode(legNodeName());
+    XMLUtils::addChild(doc, node, "FxIndex", fxIndex_);
+    if (!fixingConvention_.empty())
+        XMLUtils::addChild(doc, node, "FixingConvention", fixingConvention_);
+    if (!fixingCalendar_.empty())
+        XMLUtils::addChild(doc, node, "FixingCalendar", fixingCalendar_);
+    if (fixingDays_ != Null<Size>())
+        XMLUtils::addChild(doc, node, "FixingDays", static_cast<int>(fixingDays_));
+    XMLUtils::addChildrenWithOptionalAttributes(doc, node, "DomesticRates", "DomesticRate", domesticRates_, "startDate",
+                                                domesticDates_);
+    XMLUtils::addChildrenWithOptionalAttributes(doc, node, "ForeignRates", "ForeignRate", foreignRates_, "startDate",
+                                                foreignDates_);
+    XMLUtils::addChildrenWithOptionalAttributes(doc, node, "Caps", "Cap", caps_, "startDate", capDates_);
+    XMLUtils::addChildrenWithOptionalAttributes(doc, node, "Floors", "Floor", floors_, "startDate", floorDates_);
+
+    XMLUtils::addChild(doc, node, "NakedOption", nakedOption_);
+    return node;
+}
+
+void PRDCLegData::fromXML(XMLNode* node) {
+    XMLUtils::checkNode(node, legNodeName());
+    fxIndex_ = XMLUtils::getChildValue(node, "FxIndex", true);
+
+    // These are all optional
+    fixingConvention_ = XMLUtils::getChildValue(node, "FixingConvention", false);
+    fixingCalendar_ = XMLUtils::getChildValue(node, "FixingCalendar", false);
+    if (auto n = XMLUtils::getChildNode(node, "FixingDays"))
+        fixingDays_ = parseInteger(XMLUtils::getNodeValue(n));
+    else
+        fixingDays_ = Null<Size>();
+
+    domesticRates_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "DomesticRates", "DomesticRate", "startDate",
+                                                                     domesticDates_, &parseReal);
+    foreignRates_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "ForeignRates", "ForeignRate", "startDate",
+                                                                    foreignDates_, &parseReal);
+    caps_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "Caps", "Cap", "startDate", capDates_, &parseReal);
+    floors_ =
+        XMLUtils::getChildrenValuesWithAttributes<Real>(node, "Floors", "Floor", "startDate", floorDates_, &parseReal);
+    if (XMLUtils::getChildNode(node, "NakedOption"))
+        nakedOption_ = XMLUtils::getChildValueAsBool(node, "NakedOption", false);
+    else
+        nakedOption_ = false;
 }
 
 LegDataRegister<EquityLegData> EquityLegData::reg_("Equity");
@@ -1144,7 +1193,8 @@ Leg makeOISLeg(const LegData& data, const boost::shared_ptr<OvernightIndex>& ind
 
     auto tmp = data.schedule();
 
-    for (auto& r : tmp.modifyRules()) {  // For schedules with 1D tenor, this ensures that the index calendar supersedes the calendar provided 
+    for (auto& r : tmp.modifyRules()) { // For schedules with 1D tenor, this ensures that the index calendar supersedes
+                                        // the calendar provided
         if (r.tenor() == "1D")          // in the trade XML, to avoid differing holidays when building the schedule
             r.modifyCalendar() = to_string(index->fixingCalendar());
     }
@@ -1366,7 +1416,7 @@ Leg makeCPILeg(const LegData& data, const boost::shared_ptr<ZeroInflationIndex>&
     else
         paymentCalendar = parseCalendar(data.paymentCalendar());
     BusinessDayConvention bdc = parseBusinessDayConvention(data.paymentConvention());
-    
+
     boost::shared_ptr<InflationSwapConvention> cpiSwapConvention = nullptr;
 
     auto inflationConventions = InstrumentConventions::instance().conventions()->get(
@@ -1377,20 +1427,20 @@ Leg makeCPILeg(const LegData& data, const boost::shared_ptr<ZeroInflationIndex>&
 
     Period observationLag;
     if (cpiLegData->observationLag().empty()) {
-        QL_REQUIRE(cpiSwapConvention,
-                   "observationLag is not specified in legData and couldn't find convention for "
-                       << cpiLegData->index() << ". Please add field to trade xml or add convention");
+        QL_REQUIRE(cpiSwapConvention, "observationLag is not specified in legData and couldn't find convention for "
+                                          << cpiLegData->index()
+                                          << ". Please add field to trade xml or add convention");
         DLOG("Build CPI Leg and use observation lag from standard inflationswap convention");
         observationLag = cpiSwapConvention->observationLag();
     } else {
         observationLag = parsePeriod(cpiLegData->observationLag());
     }
-    
+
     CPI::InterpolationType interpolationMethod;
     if (cpiLegData->interpolation().empty()) {
-        QL_REQUIRE(cpiSwapConvention,
-                   "observationLag is not specified in legData and couldn't find convention for "
-                       << cpiLegData->index() << ". Please add field to trade xml or add convention");
+        QL_REQUIRE(cpiSwapConvention, "observationLag is not specified in legData and couldn't find convention for "
+                                          << cpiLegData->index()
+                                          << ". Please add field to trade xml or add convention");
         DLOG("Build CPI Leg and use observation lag from standard inflationswap convention");
         interpolationMethod = cpiSwapConvention->interpolated() ? CPI::Linear : CPI::Flat;
     } else {
@@ -1450,9 +1500,9 @@ Leg makeCPILeg(const LegData& data, const boost::shared_ptr<ZeroInflationIndex>&
     QL_REQUIRE(n > 0, "Empty CPI Leg");
 
     if (couponCapFloor || finalFlowCapFloor) {
-        
+
         string indexName = cpiLegData->index();
-        
+
         // get a coupon pricer for the leg
         boost::shared_ptr<EngineBuilder> cpBuilder = engineFactory->builder("CappedFlooredCpiLegCoupons");
         QL_REQUIRE(cpBuilder, "No builder found for CappedFlooredCpiLegCoupons");
@@ -1528,9 +1578,9 @@ Leg makeYoYLeg(const LegData& data, const boost::shared_ptr<InflationIndex>& ind
 
     Period observationLag;
     if (yoyLegData->observationLag().empty()) {
-        QL_REQUIRE(cpiSwapConvention,
-                   "observationLag is not specified in legData and couldn't find convention for "
-                       << yoyLegData->index() << ". Please add field to trade xml or add convention");
+        QL_REQUIRE(cpiSwapConvention, "observationLag is not specified in legData and couldn't find convention for "
+                                          << yoyLegData->index()
+                                          << ". Please add field to trade xml or add convention");
         DLOG("Build CPI Leg and use observation lag from standard inflationswap convention");
         observationLag = cpiSwapConvention->observationLag();
     } else {
@@ -1726,9 +1776,7 @@ Leg makeCMSLeg(const LegData& data, const boost::shared_ptr<QuantLib::SwapIndex>
     return tmpLeg;
 }
 
-Leg makeCMBLeg(const LegData& data, 
-               const boost::shared_ptr<EngineFactory>& engineFactory,
-	       const bool attachPricer,
+Leg makeCMBLeg(const LegData& data, const boost::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer,
                const QuantLib::Date& openEndDateReplacement) {
     boost::shared_ptr<CMBLegData> cmbData = boost::dynamic_pointer_cast<CMBLegData>(data.concreteLegData());
     QL_REQUIRE(cmbData, "Wrong LegType, expected CMB, got " << data.legType());
@@ -1738,13 +1786,14 @@ Leg makeCMBLeg(const LegData& data,
     // US-CMT-5Y, US-TIPS-10Y, UK-GILT-5Y, DE-BUND-10Y
     std::vector<string> tokens;
     split(tokens, bondId, boost::is_any_of("-"));
-    QL_REQUIRE(tokens.size() >= 2, "Generic Bond ID with at least two tokens separated by - expected, found " << bondId);
+    QL_REQUIRE(tokens.size() >= 2,
+               "Generic Bond ID with at least two tokens separated by - expected, found " << bondId);
     std::string securityFamily = tokens[0];
     for (Size i = 1; i < tokens.size() - 1; ++i)
         securityFamily = securityFamily + "-" + tokens[i];
     string underlyingTerm = tokens.back();
     Period underlyingPeriod = parsePeriod(underlyingTerm);
-    LOG("Generic bond id " << bondId << " has family " << securityFamily << " and term " << underlyingPeriod); 
+    LOG("Generic bond id " << bondId << " has family " << securityFamily << " and term " << underlyingPeriod);
 
     Schedule schedule = makeSchedule(data.schedule());
     Calendar calendar = schedule.calendar();
@@ -1752,16 +1801,15 @@ Leg makeCMBLeg(const LegData& data,
     BusinessDayConvention convention = schedule.businessDayConvention();
     bool creditRisk = cmbData->hasCreditRisk();
 
-    // Get the generic bond reference data, notional 1, credit risk as specified in the leg data 
+    // Get the generic bond reference data, notional 1, credit risk as specified in the leg data
     BondData bondData(bondId, 1.0, creditRisk);
     bondData.populateFromBondReferenceData(engineFactory->referenceData());
     DLOG("Bond data for security id " << bondId << " loaded");
-    QL_REQUIRE(bondData.coupons().size() == 1,
-	       "multiple reference bond legs not covered by the CMB leg");
+    QL_REQUIRE(bondData.coupons().size() == 1, "multiple reference bond legs not covered by the CMB leg");
     QL_REQUIRE(bondData.coupons().front().schedule().rules().size() == 1,
-	       "multiple bond schedule rules not covered by the CMB leg");
+               "multiple bond schedule rules not covered by the CMB leg");
     QL_REQUIRE(bondData.coupons().front().schedule().dates().size() == 0,
-	       "dates based bond schedules not covered by the CMB leg");
+               "dates based bond schedules not covered by the CMB leg");
 
     // Get bond yield conventions
     auto ret = InstrumentConventions::instance().conventions()->get(bondId, Convention::Type::BondYield);
@@ -1769,14 +1817,12 @@ Leg makeCMBLeg(const LegData& data,
     if (ret.first)
         conv = boost::dynamic_pointer_cast<BondYieldConvention>(ret.second);
     else {
-	conv = boost::make_shared<BondYieldConvention>();
-        ALOG("BondYield conventions not found for security " << bondId << ", falling back on defaults:"
-	     << " compounding=" << conv->compoundingName()
-	     << ", priceType=" << conv->priceTypeName()
-	     << ", accuracy=" << conv->accuracy() 
-	     << ", maxEvaluations=" << conv->maxEvaluations() 
-	     << ", guess=" << conv->guess());
-    } 
+        conv = boost::make_shared<BondYieldConvention>();
+        ALOG("BondYield conventions not found for security "
+             << bondId << ", falling back on defaults:"
+             << " compounding=" << conv->compoundingName() << ", priceType=" << conv->priceTypeName() << ", accuracy="
+             << conv->accuracy() << ", maxEvaluations=" << conv->maxEvaluations() << ", guess=" << conv->guess());
+    }
 
     Schedule bondSchedule = makeSchedule(bondData.coupons().front().schedule());
     DayCounter bondDayCounter = parseDayCounter(bondData.coupons().front().dayCounter());
@@ -1786,7 +1832,7 @@ Leg makeCMBLeg(const LegData& data,
     BusinessDayConvention bondConvention = bondSchedule.businessDayConvention();
     bool bondEndOfMonth = bondSchedule.endOfMonth();
     Frequency bondFrequency = bondSchedule.tenor().frequency();
-    
+
     DayCounter dayCounter = parseDayCounter(data.dayCounter());
 
     // Create a ConstantMaturityBondIndex for each schedule start date
@@ -1795,54 +1841,50 @@ Leg makeCMBLeg(const LegData& data,
     for (Size i = 0; i < schedule.dates().size() - 1; ++i) {
         // Construct bond with start date = accrual start date and maturity = accrual start date + term
         // or start = accrual end if in arrears. Adjusted for fixing lag, ignoring bond settlement lags for now.
-        Date refDate = cmbData->isInArrears() ? schedule[i+1] : schedule[i];
-	Date start = calendar.advance(refDate, -fixingDays, Days, Preceding); 
-	std::string startDate = to_string(start);
-	std::string endDate = to_string(start + underlyingPeriod);
-	bondData.populateFromBondReferenceData(engineFactory->referenceData(), startDate, endDate);
-	Bond bondTrade(Envelope(), bondData);
-	bondTrade.build(engineFactory);
-	auto bond = boost::dynamic_pointer_cast<QuantLib::Bond>(bondTrade.instrument()->qlInstrument());
-	boost::shared_ptr<QuantExt::ConstantMaturityBondIndex> bondIndex
-	    = boost::make_shared<QuantExt::ConstantMaturityBondIndex>(securityFamily, underlyingPeriod,
-	        // from bond reference data
-		bondSettlementDays, bondCurrency, bondCalendar, bondDayCounter, bondConvention, bondEndOfMonth,
-		// underlying forward starting bond
-		bond,
-		// yield calculation parameters from conventions, except frequency which is from bond reference data
-		conv->compounding(), bondFrequency, conv->accuracy(), conv->maxEvaluations(), conv->guess(), conv->priceType());
-	bondIndices.push_back(bondIndex);
+        Date refDate = cmbData->isInArrears() ? schedule[i + 1] : schedule[i];
+        Date start = calendar.advance(refDate, -fixingDays, Days, Preceding);
+        std::string startDate = to_string(start);
+        std::string endDate = to_string(start + underlyingPeriod);
+        bondData.populateFromBondReferenceData(engineFactory->referenceData(), startDate, endDate);
+        Bond bondTrade(Envelope(), bondData);
+        bondTrade.build(engineFactory);
+        auto bond = boost::dynamic_pointer_cast<QuantLib::Bond>(bondTrade.instrument()->qlInstrument());
+        boost::shared_ptr<QuantExt::ConstantMaturityBondIndex> bondIndex =
+            boost::make_shared<QuantExt::ConstantMaturityBondIndex>(
+                securityFamily, underlyingPeriod,
+                // from bond reference data
+                bondSettlementDays, bondCurrency, bondCalendar, bondDayCounter, bondConvention, bondEndOfMonth,
+                // underlying forward starting bond
+                bond,
+                // yield calculation parameters from conventions, except frequency which is from bond reference data
+                conv->compounding(), bondFrequency, conv->accuracy(), conv->maxEvaluations(), conv->guess(),
+                conv->priceType());
+        bondIndices.push_back(bondIndex);
     }
-    
+
     // Create a sequence of floating rate coupons linked to those indexes and concatenate them to a leg
     DLOG("Create CMB leg");
     vector<double> spreads = buildScheduledVectorNormalised(cmbData->spreads(), cmbData->spreadDates(), schedule, 0.0);
-    vector<double> gearings = buildScheduledVectorNormalised(cmbData->gearings(), cmbData->gearingDates(), schedule, 1.0);
+    vector<double> gearings =
+        buildScheduledVectorNormalised(cmbData->gearings(), cmbData->gearingDates(), schedule, 1.0);
     vector<double> notionals = buildScheduledVectorNormalised(data.notionals(), data.notionalDates(), schedule, 0.0);
 
     // FIXME: Move the following into CmbLeg in cmbcoupon.xpp
-    QL_REQUIRE(bondIndices.size() == schedule.size() - 1,
-	       "vector size mismatch between schedule (" << schedule.size() << ") "
-	       << "and bond indices (" << bondIndices.size() << ")");
+    QL_REQUIRE(bondIndices.size() == schedule.size() - 1, "vector size mismatch between schedule ("
+                                                              << schedule.size() << ") "
+                                                              << "and bond indices (" << bondIndices.size() << ")");
     Leg leg;
     for (Size i = 0; i < schedule.size() - 1; i++) {
         Date paymentDate = calendar.adjust(schedule[i + 1], convention);
-	DLOG("Coupon " << i << ": "
-	     << io::iso_date(paymentDate) << " "
-	     << notionals[i] << " "
-	     << io::iso_date(schedule[i]) << " "
-	     << io::iso_date(schedule[i+1]) << " "
-	     << cmbData->fixingDays() << " "
-	     << gearings[i] << " "
-	     << spreads[i] << " "
-	     << dayCounter.name());
-	boost::shared_ptr<CmbCoupon> coupon
-	    = boost::make_shared<CmbCoupon>(paymentDate, notionals[i], schedule[i], schedule[i + 1],
-					    cmbData->fixingDays(), bondIndices[i], gearings[i], spreads[i], Date(), Date(),
-					    dayCounter, cmbData->isInArrears());	
-	auto pricer = boost::make_shared<CmbCouponPricer>();
-	coupon->setPricer(pricer);
-	leg.push_back(coupon);
+        DLOG("Coupon " << i << ": " << io::iso_date(paymentDate) << " " << notionals[i] << " "
+                       << io::iso_date(schedule[i]) << " " << io::iso_date(schedule[i + 1]) << " "
+                       << cmbData->fixingDays() << " " << gearings[i] << " " << spreads[i] << " " << dayCounter.name());
+        boost::shared_ptr<CmbCoupon> coupon = boost::make_shared<CmbCoupon>(
+            paymentDate, notionals[i], schedule[i], schedule[i + 1], cmbData->fixingDays(), bondIndices[i], gearings[i],
+            spreads[i], Date(), Date(), dayCounter, cmbData->isInArrears());
+        auto pricer = boost::make_shared<CmbCouponPricer>();
+        coupon->setPricer(pricer);
+        leg.push_back(coupon);
     }
 
     return leg;
@@ -2114,6 +2156,73 @@ Leg makeDigitalCMSSpreadLeg(const LegData& data, const boost::shared_ptr<QuantLi
     Leg tmpLeg = digitalCmsSpreadLeg;
     QuantLib::setCouponPricer(tmpLeg, cmsSpreadPricer);
 
+    return tmpLeg;
+}
+
+Leg makePRDCLeg(const LegData& data, const boost::shared_ptr<QuantExt::FxIndex>& fxIndex,
+                const boost::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer,
+                const QuantLib::Date& openEndDateReplacement) {
+    boost::shared_ptr<PRDCLegData> prdcData = boost::dynamic_pointer_cast<PRDCLegData>(data.concreteLegData());
+    QL_REQUIRE(prdcData, "Wrong LegType, expected PRDC, got " << data.legType());
+    QL_REQUIRE(prdcData->domesticRates().size() > 0, "At least one domestic rate has to be provided for PRDC payoff");
+    QL_REQUIRE(prdcData->foreignRates().size() > 0, "At least one foreign rate has to be provided for PRDC payoff");
+
+    Schedule schedule = makeSchedule(data.schedule(), openEndDateReplacement);
+    DayCounter dc = parseDayCounter(data.dayCounter());
+    vector<double> notionals = buildScheduledVector(data.notionals(), data.notionalDates(), schedule);
+    Size fixingDays = prdcData->fixingDays();
+    BusinessDayConvention bdc = parseBusinessDayConvention(
+        prdcData->fixingConvention().empty() ? data.paymentConvention() : prdcData->fixingConvention());
+    Calendar calendar =
+        prdcData->fixingCalendar().empty() ? schedule.calendar() : parseCalendar(prdcData->fixingCalendar());
+
+    applyAmortization(notionals, data, schedule, false);
+
+    PrdcLeg prdcLeg = PrdcLeg(schedule, fxIndex)
+                          .withNotionals(notionals)
+                          .withPaymentDayCounter(dc)
+                          .withFixingAdjustment(bdc)
+                          .withFixingCalendar(calendar)
+                          .withFixingDays(fixingDays);
+
+    prdcLeg.withDomesticRates(buildScheduledVector(prdcData->domesticRates(), prdcData->domesticDates(), schedule));
+    prdcLeg.withForeignRates(buildScheduledVector(prdcData->foreignRates(), prdcData->foreignDates(), schedule));
+    if (prdcData->caps().size() > 0)
+        prdcLeg.withCaps(buildScheduledVector(prdcData->caps(), prdcData->capDates(), schedule));
+    if (prdcData->floors().size() > 0)
+        prdcLeg.withFloors(buildScheduledVector(prdcData->floors(), prdcData->floorDates(), schedule));
+
+    if (!attachPricer)
+        return prdcLeg;
+
+    // Get a coupon pricer for the leg
+    bool doSimulate = engineFactory->engineData()->hasProduct("PRDC");
+    if (doSimulate)
+        prdcLeg.simulate();
+
+    Leg tmpLeg = prdcLeg;
+
+    if (doSimulate) {
+        auto builder = engineFactory->builder("PRDC");
+        QL_REQUIRE(builder, "No builder found for PRDC");
+        auto prdcBuilder = boost::dynamic_pointer_cast<CamPrdcCouponPricerBuilder>(builder);
+        auto prdcPricer = boost::dynamic_pointer_cast<CmsCouponPricer>(
+            prdcBuilder->engine(fxIndex->sourceCurrency().code() + fxIndex->targetCurrency().code()));
+
+        // Loop over the coupons in the leg and set pricer
+        QuantLib::setCouponPricer(tmpLeg, prdcPricer);
+    }
+
+    // build naked option leg if required
+    if (prdcData->nakedOption()) {
+        tmpLeg = StrippedCappedFlooredCouponLeg(tmpLeg);
+        // fix for missing registration in ql 1.13
+        for (auto const& t : tmpLeg) {
+            auto s = boost::dynamic_pointer_cast<StrippedCappedFlooredCoupon>(t);
+            if (s != nullptr)
+                s->registerWith(s->underlying());
+        }
+    }
     return tmpLeg;
 }
 
@@ -2497,7 +2606,8 @@ boost::shared_ptr<QuantExt::BondIndex> buildBondIndex(const BondData& securityDa
     Handle<DefaultProbabilityTermStructure> defaultCurve;
     if (!data.creditCurveId().empty())
         defaultCurve = securitySpecificCreditCurve(engineFactory->market(), securityId, data.creditCurveId(),
-                                                   engineFactory->configuration(MarketContext::pricing))->curve();
+                                                   engineFactory->configuration(MarketContext::pricing))
+                           ->curve();
 
     Handle<YieldTermStructure> incomeCurve;
     if (!data.incomeCurveId().empty())

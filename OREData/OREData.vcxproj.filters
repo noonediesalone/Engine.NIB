@@ -694,6 +694,9 @@
     <ClInclude Include="ored\utilities\currencyparser.hpp">
       <Filter>utilities</Filter>
     </ClInclude>
+    <ClInclude Include="ored\portfolio\builders\prdc.hpp">
+      <Filter>portfolio\builders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ored\configuration\capfloorvolcurveconfig.cpp">
@@ -1220,6 +1223,9 @@
     </ClCompile>
     <ClCompile Include="ored\portfolio\asianoption.cpp">
       <Filter>portfolio</Filter>
+    </ClCompile>
+    <ClCompile Include="ored\portfolio\builders\prdc.cpp">
+      <Filter>portfolio\builders</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -28,6 +28,7 @@
 #include <ored/portfolio/builders/capflooredovernightindexedcouponleg.hpp>
 #include <ored/portfolio/builders/capflooredyoyleg.hpp>
 #include <ored/portfolio/builders/cms.hpp>
+#include <ored/portfolio/builders/prdc.hpp>
 #include <ored/portfolio/builders/cmsspread.hpp>
 #include <ored/portfolio/builders/commodityasianoption.hpp>
 #include <ored/portfolio/builders/commodityforward.hpp>
@@ -212,6 +213,7 @@ void EngineFactory::addDefaultBuilders() {
     registerBuilder(boost::make_shared<NumericalHaganCmsCouponPricerBuilder>());
     registerBuilder(boost::make_shared<LinearTSRCmsCouponPricerBuilder>());
     registerBuilder(boost::make_shared<data::LinearTsrDurationAdjustedCmsCouponPricerBuilder>());
+    registerBuilder(boost::make_shared<CamPrdcCouponPricerBuilder>());
 
     registerBuilder(boost::make_shared<MidPointCdsEngineBuilder>());
     registerBuilder(boost::make_shared<BlackCdsOptionEngineBuilder>());
@@ -241,6 +243,7 @@ void EngineFactory::addDefaultBuilders() {
     registerLegBuilder(boost::make_shared<DigitalCMSLegBuilder>());
     registerLegBuilder(boost::make_shared<CMSSpreadLegBuilder>());
     registerLegBuilder(boost::make_shared<DigitalCMSSpreadLegBuilder>());
+    registerLegBuilder(boost::make_shared<PRDCLegBuilder>());
     registerLegBuilder(boost::make_shared<EquityLegBuilder>());
 }
 
