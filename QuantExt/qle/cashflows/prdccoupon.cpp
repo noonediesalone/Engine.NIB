@@ -5,22 +5,22 @@
 
 #include <ql/cashflows/capflooredcoupon.hpp>
 #include <ql/cashflows/cashflowvectors.hpp>
+#include <ql/utilities/vectors.hpp>
 #include <qle/cashflows/prdccoupon.hpp>
 #include <utility>
-#include <ql/utilities/vectors.hpp>
 
-#include <qle/models/parametrization.hpp>
 #include <qle/models/crossassetmodel.hpp>
 #include <qle/models/fxbspiecewiseconstantparametrization.hpp>
+#include <qle/models/parametrization.hpp>
 
 namespace QuantExt {
 
-PrdcFixedCoupon::PrdcFixedCoupon(boost::shared_ptr<FxIndex> fxIndex, const boost::shared_ptr<FixedRateCoupon>& underlying,
-                       const Date& fxFixingDate, Real foreignAmount, Real domesticAmount,
-    Rate cap, Rate floor)
+PrdcFixedCoupon::PrdcFixedCoupon(boost::shared_ptr<FxIndex> fxIndex,
+                                 const boost::shared_ptr<FixedRateCoupon>& underlying, const Date& fxFixingDate,
+                                 Real foreignAmount, Real domesticAmount, Rate cap, Rate floor)
     : FixedRateCoupon(underlying->date(), foreignAmount, underlying->rate(), underlying->dayCounter(),
                       underlying->accrualStartDate(), underlying->accrualEndDate(), underlying->referencePeriodStart(),
-                      underlying->referencePeriodEnd()),
+                      underlying->referencePeriodEnd(), underlying->exCouponDate()),
       FXLinked(fxFixingDate, foreignAmount, fxIndex), underlying_(underlying), domesticAmount_(domesticAmount),
       cap_(cap), floor_(floor) {
     registerWith(FXLinked::fxIndex());
@@ -48,7 +48,7 @@ Real PrdcFixedCoupon::amount() const {
 
 Rate PrdcFixedCoupon::nominal() const { return underlying_->nominal(); }
 
-Rate PrdcFixedCoupon::rate() const { 
+Rate PrdcFixedCoupon::rate() const {
     return fxRate();
     /*
 
@@ -91,16 +91,13 @@ Real PrdcFixedCoupon::accruedAmount(const Date& d) const {
     if (d <= accrualStartDate() || d > paymentDate_) {
         // out of coupon range
         return 0.0;
-    }
-    else
-    {
+    } else {
         auto df = (interestRate().compoundFactor(d, std::max(d, accrualEndDate()), referencePeriodStart(),
                                                  referencePeriodEnd()) -
                    1.0);
         if (tradingExCoupon(d)) {
             return -nominal() * df;
-        }
-        else {
+        } else {
             // usual case
             return nominal() * df;
         }
@@ -118,11 +115,13 @@ void PrdcFixedCoupon::accept(AcyclicVisitor& v) {
 }
 
 boost::shared_ptr<FXLinked> PrdcFixedCoupon::clone(boost::shared_ptr<FxIndex> fxIndex) {
-    return boost::make_shared<PrdcFixedCoupon>(fxIndex, underlying(), fxFixingDate(), foreignAmount(), domesticAmount(), cap(), floor());
+    return boost::make_shared<PrdcFixedCoupon>(fxIndex, underlying(), fxFixingDate(), foreignAmount(), domesticAmount(),
+                                               cap(), floor());
 }
 
 PrdcLeg::PrdcLeg(Schedule schedule, const boost::shared_ptr<QuantExt::FxIndex>& fxIndex)
-    : schedule_(std::move(schedule)), fxIndex_(fxIndex), fixingAdjustment_(Following), simulate_(false) {}
+    : schedule_(std::move(schedule)), fxIndex_(fxIndex), fixingAdjustment_(Following), simulate_(false),
+      inArrearsFixing_(true) {}
 
 PrdcLeg& PrdcLeg::withNotionals(Real notional) {
     notionals_ = std::vector<Real>(1, notional);
@@ -151,6 +150,11 @@ PrdcLeg& PrdcLeg::withFixingCalendar(const Calendar& cal) {
 
 PrdcLeg& PrdcLeg::withFixingDays(Natural fixingDays) {
     fixingPeriod_ = Period(fixingDays, TimeUnit::Days);
+    return *this;
+}
+
+PrdcLeg& PrdcLeg::withInArrears(bool inArrearsFixing) {
+    inArrearsFixing_ = inArrearsFixing;
     return *this;
 }
 
@@ -202,8 +206,11 @@ PrdcLeg::operator Leg() const {
     auto fixingCalendar = fixingCalendar_.empty() ? paymentCalendar : fixingCalendar_;
 
     for (Size i = 0; i < schedule_.size() - 1; i++) {
-        Date paymentDate = paymentCalendar.adjust(schedule_[i + 1], paymentAdjustment);
-        Date fixingDate = fixingCalendar.advance(schedule_[i], fixingPeriod_);
+        Date startDate = schedule_[i];
+        Date endDate = schedule_[i + 1];
+        Date paymentDate = paymentCalendar.adjust(endDate, paymentAdjustment);
+        Date fixingDate = inArrearsFixing_ ? endDate : startDate;
+        fixingDate = fixingCalendar.advance(fixingDate, fixingPeriod_);
         fixingDate = fixingCalendar.adjust(fixingDate, fixingAdjustment_);
         auto foreignRate = QuantLib::detail::get(foreignRates_, i, 1.0);
         auto domesticRate = QuantLib::detail::get(domesticRates_, i, 0);
@@ -213,13 +220,11 @@ PrdcLeg::operator Leg() const {
 
         if (!simulate_) {
             auto fixedCoupon = boost::make_shared<FixedRateCoupon>(paymentDate, notional, 1.0, paymentDayCounter_,
-                                                                   schedule_[i], schedule_[i + 1], Date(), Date());
+                                                                   startDate, endDate, Date(), Date());
             boost::shared_ptr<PrdcFixedCoupon> coupon = boost::make_shared<PrdcFixedCoupon>(
                 fxIndex_, fixedCoupon, fixingDate, foreignRate, domesticRate, cap, floor);
             leg.push_back(coupon);
-        }
-        else
-        {
+        } else {
             QL_ASSERT(false, "PRDC with simulation not implemented");
         }
     }
@@ -227,23 +232,11 @@ PrdcLeg::operator Leg() const {
 }
 
 void CAMPricer::initialize(const FloatingRateCoupon& coupon) {}
-Real CAMPricer::swapletPrice() const {
-    return 0;
-}
-Rate CAMPricer::swapletRate() const {
-    return 0;
-}
-Real CAMPricer::capletPrice(Rate effectiveCap) const {
-    return 0;
-}
-Rate CAMPricer::capletRate(Rate effectiveCap) const {
-    return 0;
-}
-Real CAMPricer::floorletPrice(Rate effectiveFloor) const {
-    return 0;
-}
-Rate CAMPricer::floorletRate(Rate effectiveFloor) const {
-    return 0;
-}
+Real CAMPricer::swapletPrice() const { return 0; }
+Rate CAMPricer::swapletRate() const { return 0; }
+Real CAMPricer::capletPrice(Rate effectiveCap) const { return 0; }
+Rate CAMPricer::capletRate(Rate effectiveCap) const { return 0; }
+Real CAMPricer::floorletPrice(Rate effectiveFloor) const { return 0; }
+Rate CAMPricer::floorletRate(Rate effectiveFloor) const { return 0; }
 
 } // namespace QuantExt

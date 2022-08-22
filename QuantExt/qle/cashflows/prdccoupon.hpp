@@ -81,6 +81,7 @@ public:
     PrdcLeg& withFixingAdjustment(BusinessDayConvention convention);
     PrdcLeg& withFixingCalendar(const Calendar& cal);
     PrdcLeg& withFixingDays(Natural fixingDays);
+    PrdcLeg& withInArrears(bool inArrearsFixing = true);
     PrdcLeg& withDomesticRates(Rate rate);
     PrdcLeg& withDomesticRates(const std::vector<Rate>& rates);
     PrdcLeg& withForeignRates(Rate rate);
@@ -101,6 +102,7 @@ private:
     BusinessDayConvention fixingAdjustment_;
     Calendar fixingCalendar_;
     Period fixingPeriod_;
+    bool inArrearsFixing_;
     std::vector<Rate> domesticRates_;
     std::vector<Rate> foreignRates_;
     std::vector<Rate> caps_;
