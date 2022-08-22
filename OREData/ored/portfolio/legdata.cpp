@@ -609,6 +609,7 @@ XMLNode* PRDCLegData::toXML(XMLDocument& doc) {
         XMLUtils::addChild(doc, node, "FixingCalendar", fixingCalendar_);
     if (fixingDays_ != Null<Size>())
         XMLUtils::addChild(doc, node, "FixingDays", static_cast<int>(fixingDays_));
+    XMLUtils::addChild(doc, node, "IsInArrears", isInArrears_);
     XMLUtils::addChildrenWithOptionalAttributes(doc, node, "DomesticRates", "DomesticRate", domesticRates_, "startDate",
                                                 domesticDates_);
     XMLUtils::addChildrenWithOptionalAttributes(doc, node, "ForeignRates", "ForeignRate", foreignRates_, "startDate",
@@ -631,6 +632,10 @@ void PRDCLegData::fromXML(XMLNode* node) {
         fixingDays_ = parseInteger(XMLUtils::getNodeValue(n));
     else
         fixingDays_ = Null<Size>();
+    if (auto* n = XMLUtils::getChildNode(node, "IsInArrears"))
+        isInArrears_ = parseBool(XMLUtils::getNodeValue(n));
+    else
+        isInArrears_ = true;
 
     domesticRates_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "DomesticRates", "DomesticRate", "startDate",
                                                                      domesticDates_, &parseReal);
@@ -2175,6 +2180,7 @@ Leg makePRDCLeg(const LegData& data, const boost::shared_ptr<QuantExt::FxIndex>&
         prdcData->fixingConvention().empty() ? data.paymentConvention() : prdcData->fixingConvention());
     Calendar calendar =
         prdcData->fixingCalendar().empty() ? schedule.calendar() : parseCalendar(prdcData->fixingCalendar());
+    bool isInArrears = prdcData->isInArrears();
 
     applyAmortization(notionals, data, schedule, false);
 
@@ -2183,7 +2189,8 @@ Leg makePRDCLeg(const LegData& data, const boost::shared_ptr<QuantExt::FxIndex>&
                           .withPaymentDayCounter(dc)
                           .withFixingAdjustment(bdc)
                           .withFixingCalendar(calendar)
-                          .withFixingDays(fixingDays);
+                          .withFixingDays(fixingDays)
+                          .withInArrears(isInArrears);
 
     prdcLeg.withDomesticRates(buildScheduledVector(prdcData->domesticRates(), prdcData->domesticDates(), schedule));
     prdcLeg.withForeignRates(buildScheduledVector(prdcData->foreignRates(), prdcData->foreignDates(), schedule));
