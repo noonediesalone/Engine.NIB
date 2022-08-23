@@ -25,8 +25,8 @@ class PrdcFixedCoupon : public QuantLib::Observer, public FixedRateCoupon, publi
 public:
     //! PrdcCoupon
     PrdcFixedCoupon(boost::shared_ptr<FxIndex> fxIndex, const boost::shared_ptr<FixedRateCoupon>& underlying,
-               const Date& fxFixingDate, Real foreignAmount, Real domesticAmount,
-               Rate cap = Null<Rate>(), Rate floor = Null<Rate>());
+                    const Date& fxFixingDate, Real foreignAmount, Real domesticAmount,
+                    Real denominationAmount = Null<Real>(), Rate cap = Null<Rate>(), Rate floor = Null<Rate>());
 
     //! \name FXLinked interface
     //@{
@@ -58,6 +58,9 @@ public:
     //! \name Inspectors
     inline boost::shared_ptr<FixedRateCoupon> underlying() const { return underlying_; };
     inline Real domesticAmount() const { return domesticAmount_; };
+    inline Real denominationAmount() const {
+        return (denominationAmount_ == Null<Real>() || denominationAmount_ == 0) ? 1 : denominationAmount_;
+    };
     inline Rate cap() const { return cap_; };
     inline Rate floor() const { return floor_; };
 
@@ -67,6 +70,7 @@ public:
 private:
     const boost::shared_ptr<FixedRateCoupon> underlying_;
     Real domesticAmount_;
+    Real denominationAmount_;
     Rate cap_;
     Rate floor_;
 };
@@ -82,6 +86,7 @@ public:
     PrdcLeg& withFixingCalendar(const Calendar& cal);
     PrdcLeg& withFixingDays(Natural fixingDays);
     PrdcLeg& withInArrears(bool inArrearsFixing = true);
+    PrdcLeg& withDenominationAmount(Real denominationAmount);
     PrdcLeg& withDomesticRates(Rate rate);
     PrdcLeg& withDomesticRates(const std::vector<Rate>& rates);
     PrdcLeg& withForeignRates(Rate rate);
@@ -103,6 +108,7 @@ private:
     Calendar fixingCalendar_;
     Period fixingPeriod_;
     bool inArrearsFixing_;
+    Real denominationAmount_;
     std::vector<Rate> domesticRates_;
     std::vector<Rate> foreignRates_;
     std::vector<Rate> caps_;
