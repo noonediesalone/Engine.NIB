@@ -17,12 +17,12 @@ namespace QuantExt {
 
 PrdcFixedCoupon::PrdcFixedCoupon(boost::shared_ptr<FxIndex> fxIndex,
                                  const boost::shared_ptr<FixedRateCoupon>& underlying, const Date& fxFixingDate,
-                                 Real foreignAmount, Real domesticAmount, Rate cap, Rate floor)
+                                 Real foreignAmount, Real domesticAmount, Real denominationAmount, Rate cap, Rate floor)
     : FixedRateCoupon(underlying->date(), foreignAmount, underlying->rate(), underlying->dayCounter(),
                       underlying->accrualStartDate(), underlying->accrualEndDate(), underlying->referencePeriodStart(),
                       underlying->referencePeriodEnd(), underlying->exCouponDate()),
       FXLinked(fxFixingDate, foreignAmount, fxIndex), underlying_(underlying), domesticAmount_(domesticAmount),
-      cap_(cap), floor_(floor) {
+      denominationAmount_(denominationAmount), cap_(cap), floor_(floor) {
     registerWith(FXLinked::fxIndex());
     registerWith(underlying_);
 }
@@ -40,7 +40,7 @@ Rate PrdcFixedCoupon::couponRate() const {
 }
 
 Real PrdcFixedCoupon::amount() const {
-    return couponRate() * nominal() *
+    return couponRate() * (nominal() / denominationAmount()) *
            (interestRate().compoundFactor(accrualStartDate(), accrualEndDate(), referencePeriodStart(),
                                           referencePeriodEnd()) -
             1.0);
@@ -48,44 +48,7 @@ Real PrdcFixedCoupon::amount() const {
 
 Rate PrdcFixedCoupon::nominal() const { return underlying_->nominal(); }
 
-Rate PrdcFixedCoupon::rate() const {
-    return fxRate();
-    /*
-
-    boost::shared_ptr<IrLgm1fParametrization> eurLgmParam = boost::make_shared<IrLgm1fPiecewiseConstantParametrization>(
-        sourceCcy, fxIndex()->sourceCurve(), alphaTimesEur, alphaEur, kappaTimesEur, kappaEur);
-
-    boost::shared_ptr<IrLgm1fParametrization> usdLgmParam = boost::make_shared<IrLgm1fPiecewiseConstantParametrization>(
-        targetCcy, fxIndex()->targetCurve(), alphaTimesUsd, alphaUsd, kappaTimesUsd, kappaUsd);
-
-    // USD per EUR (foreign per domestic)
-    Handle<Quote> usdEurSpotToday(boost::make_shared<SimpleQuote>(0.90));
-
-    boost::shared_ptr<FxBsParametrization> fxUsdEurBsParam =
-        boost::make_shared<FxBsPiecewiseConstantParametrization>(USDCurrency(), usdEurSpotToday, fxTimes, fxSigmas);
-
-    std::vector<boost::shared_ptr<Parametrization> > singleModels;
-    singleModels.push_back(eurLgmParam);
-    singleModels.push_back(usdLgmParam);
-    singleModels.push_back(fxUsdEurBsParam);
-
-    boost::shared_ptr<CrossAssetModel> ccLgm = boost::make_shared<CrossAssetModel>(singleModels);
-
-    Size sourceIdx = ccLgm->ccyIndex(sourceCcy);
-    Size targetIdx = ccLgm->ccyIndex();
-    Size fxIdx = targetIdx - 1;
-
-    ccLgm->correlation(IR, sourceIdx, IR, targetIdx, -0.2);
-    ccLgm->correlation(IR, sourceIdx, FX, fxIdx, 0.8);
-    ccLgm->correlation(IR, targetIdx, FX, fxIdx, -0.5);
-
-    boost::shared_ptr<LinearGaussMarkovModel> eurLgm = boost::make_shared<LinearGaussMarkovModel>(eurLgmParam);
-    boost::shared_ptr<LinearGaussMarkovModel> usdLgm = boost::make_shared<LinearGaussMarkovModel>(usdLgmParam);
-
-    boost::shared_ptr<StochasticProcess> process = ccLgm->stateProcess(CrossAssetStateProcess::exact);
-    boost::shared_ptr<StochasticProcess> usdProcess = usdLgm->stateProcess();
-    */
-}
+Rate PrdcFixedCoupon::rate() const { return fxRate(); }
 
 Real PrdcFixedCoupon::accruedAmount(const Date& d) const {
     if (d <= accrualStartDate() || d > paymentDate_) {
@@ -121,7 +84,7 @@ boost::shared_ptr<FXLinked> PrdcFixedCoupon::clone(boost::shared_ptr<FxIndex> fx
 
 PrdcLeg::PrdcLeg(Schedule schedule, const boost::shared_ptr<QuantExt::FxIndex>& fxIndex)
     : schedule_(std::move(schedule)), fxIndex_(fxIndex), fixingAdjustment_(Following), simulate_(false),
-      inArrearsFixing_(true) {}
+      inArrearsFixing_(true), denominationAmount_(Null<Real>()) {}
 
 PrdcLeg& PrdcLeg::withNotionals(Real notional) {
     notionals_ = std::vector<Real>(1, notional);
@@ -155,6 +118,11 @@ PrdcLeg& PrdcLeg::withFixingDays(Natural fixingDays) {
 
 PrdcLeg& PrdcLeg::withInArrears(bool inArrearsFixing) {
     inArrearsFixing_ = inArrearsFixing;
+    return *this;
+}
+
+PrdcLeg& PrdcLeg::withDenominationAmount(Real denominationAmount) {
+    denominationAmount_ = denominationAmount;
     return *this;
 }
 
@@ -204,6 +172,7 @@ PrdcLeg::operator Leg() const {
     auto paymentCalendar = schedule_.calendar();
     auto paymentAdjustment = schedule_.businessDayConvention();
     auto fixingCalendar = fixingCalendar_.empty() ? paymentCalendar : fixingCalendar_;
+    const Rate fixed_rate = 1;
 
     for (Size i = 0; i < schedule_.size() - 1; i++) {
         Date startDate = schedule_[i];
@@ -219,10 +188,10 @@ PrdcLeg::operator Leg() const {
         auto floor = QuantLib::detail::get(floors_, i, Null<Rate>());
 
         if (!simulate_) {
-            auto fixedCoupon = boost::make_shared<FixedRateCoupon>(paymentDate, notional, 1.0, paymentDayCounter_,
-                                                                   startDate, endDate, Date(), Date());
+            auto fixedCoupon = boost::make_shared<FixedRateCoupon>(
+                paymentDate, notional, fixed_rate, paymentDayCounter_, startDate, endDate, Date(), Date());
             boost::shared_ptr<PrdcFixedCoupon> coupon = boost::make_shared<PrdcFixedCoupon>(
-                fxIndex_, fixedCoupon, fixingDate, foreignRate, domesticRate, cap, floor);
+                fxIndex_, fixedCoupon, fixingDate, foreignRate, domesticRate, denominationAmount_, cap, floor);
             leg.push_back(coupon);
         } else {
             QL_ASSERT(false, "PRDC with simulation not implemented");

@@ -582,12 +582,14 @@ LegDataRegister<PRDCLegData> PRDCLegData::reg_("PRDC");
 XMLNode* PRDCLegData::toXML(XMLDocument& doc) {
     XMLNode* node = doc.allocNode(legNodeName());
     XMLUtils::addChild(doc, node, "FxIndex", fxIndex_);
-    if (!fixingConvention_.empty())
-        XMLUtils::addChild(doc, node, "FixingConvention", fixingConvention_);
     if (!fixingCalendar_.empty())
         XMLUtils::addChild(doc, node, "FixingCalendar", fixingCalendar_);
+    if (!fixingConvention_.empty())
+        XMLUtils::addChild(doc, node, "FixingConvention", fixingConvention_);    
     if (fixingDays_ != Null<Size>())
         XMLUtils::addChild(doc, node, "FixingDays", static_cast<int>(fixingDays_));
+    if (denominationAmount_ != Null<Real>())
+        XMLUtils::addChild(doc, node, "DenominationAmount", static_cast<double>(denominationAmount_));
     XMLUtils::addChild(doc, node, "IsInArrears", isInArrears_);
     XMLUtils::addChildrenWithOptionalAttributes(doc, node, "DomesticRates", "DomesticRate", domesticRates_, "startDate",
                                                 domesticDates_);
@@ -595,8 +597,6 @@ XMLNode* PRDCLegData::toXML(XMLDocument& doc) {
                                                 foreignDates_);
     XMLUtils::addChildrenWithOptionalAttributes(doc, node, "Caps", "Cap", caps_, "startDate", capDates_);
     XMLUtils::addChildrenWithOptionalAttributes(doc, node, "Floors", "Floor", floors_, "startDate", floorDates_);
-
-    XMLUtils::addChild(doc, node, "NakedOption", nakedOption_);
     return node;
 }
 
@@ -604,9 +604,14 @@ void PRDCLegData::fromXML(XMLNode* node) {
     XMLUtils::checkNode(node, legNodeName());
     fxIndex_ = XMLUtils::getChildValue(node, "FxIndex", true);
 
+    domesticRates_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "DomesticRates", "DomesticRate", "startDate",
+                                                                     domesticDates_, &parseReal);
+    foreignRates_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "ForeignRates", "ForeignRate", "startDate",
+                                                                    foreignDates_, &parseReal);
+
     // These are all optional
-    fixingConvention_ = XMLUtils::getChildValue(node, "FixingConvention", false);
     fixingCalendar_ = XMLUtils::getChildValue(node, "FixingCalendar", false);
+    fixingConvention_ = XMLUtils::getChildValue(node, "FixingConvention", false);    
     if (auto n = XMLUtils::getChildNode(node, "FixingDays"))
         fixingDays_ = parseInteger(XMLUtils::getNodeValue(n));
     else
@@ -615,18 +620,14 @@ void PRDCLegData::fromXML(XMLNode* node) {
         isInArrears_ = parseBool(XMLUtils::getNodeValue(n));
     else
         isInArrears_ = true;
-
-    domesticRates_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "DomesticRates", "DomesticRate", "startDate",
-                                                                     domesticDates_, &parseReal);
-    foreignRates_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "ForeignRates", "ForeignRate", "startDate",
-                                                                    foreignDates_, &parseReal);
+    if (auto n = XMLUtils::getChildNode(node, "DenominationAmount"))
+        denominationAmount_ = parseReal(XMLUtils::getNodeValue(n));
+    else
+        denominationAmount_ = Null<Real>();
+    
     caps_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "Caps", "Cap", "startDate", capDates_, &parseReal);
     floors_ =
         XMLUtils::getChildrenValuesWithAttributes<Real>(node, "Floors", "Floor", "startDate", floorDates_, &parseReal);
-    if (XMLUtils::getChildNode(node, "NakedOption"))
-        nakedOption_ = XMLUtils::getChildValueAsBool(node, "NakedOption", false);
-    else
-        nakedOption_ = false;
 }
 
 LegDataRegister<EquityLegData> EquityLegData::reg_("Equity");
@@ -2171,7 +2172,6 @@ Leg makePRDCLeg(const LegData& data, const boost::shared_ptr<QuantExt::FxIndex>&
     Schedule schedule = makeSchedule(data.schedule(), openEndDateReplacement);
     DayCounter dc = parseDayCounter(data.dayCounter());
     vector<double> notionals = buildScheduledVector(data.notionals(), data.notionalDates(), schedule);
-    Size fixingDays = prdcData->fixingDays();
     BusinessDayConvention bdc = parseBusinessDayConvention(
         prdcData->fixingConvention().empty() ? data.paymentConvention() : prdcData->fixingConvention());
     Calendar calendar =
@@ -2180,16 +2180,21 @@ Leg makePRDCLeg(const LegData& data, const boost::shared_ptr<QuantExt::FxIndex>&
 
     applyAmortization(notionals, data, schedule, false);
 
-    PrdcLeg prdcLeg = PrdcLeg(schedule, fxIndex)
-                          .withNotionals(notionals)
-                          .withPaymentDayCounter(dc)
-                          .withFixingAdjustment(bdc)
-                          .withFixingCalendar(calendar)
-                          .withFixingDays(fixingDays)
-                          .withInArrears(isInArrears);
+    PrdcLeg prdcLeg =
+        PrdcLeg(schedule, fxIndex)
+            .withDomesticRates(buildScheduledVector(prdcData->domesticRates(), prdcData->domesticDates(), schedule))
+            .withForeignRates(buildScheduledVector(prdcData->foreignRates(), prdcData->foreignDates(), schedule))
+            .withNotionals(notionals)
+            .withPaymentDayCounter(dc)
+            .withFixingAdjustment(bdc)
+            .withFixingCalendar(calendar)
+            .withInArrears(isInArrears);
 
-    prdcLeg.withDomesticRates(buildScheduledVector(prdcData->domesticRates(), prdcData->domesticDates(), schedule));
-    prdcLeg.withForeignRates(buildScheduledVector(prdcData->foreignRates(), prdcData->foreignDates(), schedule));
+    if (auto fixingDays = prdcData->fixingDays() != Null<Size>())
+        prdcLeg.withFixingDays(fixingDays);
+    if (auto denomAmount = prdcData->denominationAmount() != Null<Real>())
+        prdcLeg.withDenominationAmount(denomAmount);
+
     if (prdcData->caps().size() > 0)
         prdcLeg.withCaps(buildScheduledVector(prdcData->caps(), prdcData->capDates(), schedule));
     if (prdcData->floors().size() > 0)
@@ -2216,16 +2221,6 @@ Leg makePRDCLeg(const LegData& data, const boost::shared_ptr<QuantExt::FxIndex>&
         QuantLib::setCouponPricer(tmpLeg, prdcPricer);
     }
 
-    // build naked option leg if required
-    if (prdcData->nakedOption()) {
-        tmpLeg = StrippedCappedFlooredCouponLeg(tmpLeg);
-        // fix for missing registration in ql 1.13
-        for (auto const& t : tmpLeg) {
-            auto s = boost::dynamic_pointer_cast<StrippedCappedFlooredCoupon>(t);
-            if (s != nullptr)
-                s->registerWith(s->underlying());
-        }
-    }
     return tmpLeg;
 }
 
