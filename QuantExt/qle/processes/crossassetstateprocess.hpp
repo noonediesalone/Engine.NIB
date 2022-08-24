@@ -48,18 +48,18 @@ public:
 
     /*! StochasticProcess interface */
     Size size() const override;
-    Disposable<Array> initialValues() const override;
-    Disposable<Array> drift(Time t, const Array& x) const override;
-    Disposable<Matrix> diffusion(Time t, const Array& x) const override;
-    Disposable<Array> evolve(Time t0, const Array& x0, Time dt, const Array& dw) const override;
+    Array initialValues() const override;
+    Array drift(Time t, const Array& x) const override;
+    Matrix diffusion(Time t, const Array& x) const override;
+    Array evolve(Time t0, const Array& x0, Time dt, const Array& dw) const override;
 
     /*! specific members */
     virtual void flushCache() const;
 
 protected:
-    virtual Disposable<Array> marginalDiffusion(Time t, const Array& x) const;
-    virtual Disposable<Matrix> diffusionImpl(Time t, const Array& x) const;
-    virtual Disposable<Array> marginalDiffusionImpl(Time t, const Array& x) const;
+    virtual Array marginalDiffusion(Time t, const Array& x) const;
+    virtual Matrix diffusionImpl(Time t, const Array& x) const;
+    virtual Array marginalDiffusionImpl(Time t, const Array& x) const;
     void updateSqrtCorrelation() const;
 
     const CrossAssetModel* const model_;
@@ -73,15 +73,15 @@ protected:
     public:
         ExactDiscretization(const CrossAssetModel* const model,
                             SalvagingAlgorithm::Type salvaging = SalvagingAlgorithm::Spectral);
-        virtual Disposable<Array> drift(const StochasticProcess&, Time t0, const Array& x0, Time dt) const override;
-        virtual Disposable<Matrix> diffusion(const StochasticProcess&, Time t0, const Array& x0, Time dt) const override;
-        virtual Disposable<Matrix> covariance(const StochasticProcess&, Time t0, const Array& x0, Time dt) const override;
+        virtual Array drift(const StochasticProcess&, Time t0, const Array& x0, Time dt) const override;
+        virtual Matrix diffusion(const StochasticProcess&, Time t0, const Array& x0, Time dt) const override;
+        virtual Matrix covariance(const StochasticProcess&, Time t0, const Array& x0, Time dt) const override;
         void flushCache() const;
 
     protected:
-        virtual Disposable<Array> driftImpl1(const StochasticProcess&, Time t0, const Array& x0, Time dt) const;
-        virtual Disposable<Array> driftImpl2(const StochasticProcess&, Time t0, const Array& x0, Time dt) const;
-        virtual Disposable<Matrix> covarianceImpl(const StochasticProcess&, Time t0, const Array& x0, Time dt) const;
+        virtual Array driftImpl1(const StochasticProcess&, Time t0, const Array& x0, Time dt) const;
+        virtual Array driftImpl2(const StochasticProcess&, Time t0, const Array& x0, Time dt) const;
+        virtual Matrix covarianceImpl(const StochasticProcess&, Time t0, const Array& x0, Time dt) const;
 
         const CrossAssetModel* const model_;
         SalvagingAlgorithm::Type salvaging_;
@@ -92,7 +92,7 @@ protected:
             bool operator==(const cache_key& o) const { return (t0 == o.t0) && (dt == o.dt); }
         };
 
-        struct cache_hasher : std::unary_function<cache_key, std::size_t> {
+        struct cache_hasher {
             std::size_t operator()(cache_key const& x) const {
                 std::size_t seed = 0;
                 boost::hash_combine(seed, x.t0);
@@ -105,7 +105,7 @@ protected:
     }; // ExactDiscretization
 
     // cache for process drift and diffusion (e.g. used in Euler discretization)
-    struct cache_hasher : std::unary_function<double, std::size_t> {
+    struct cache_hasher {
         std::size_t operator()(double const& x) const {
             std::size_t seed = 0;
             boost::hash_combine(seed, x);
