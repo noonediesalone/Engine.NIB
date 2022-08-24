@@ -2190,11 +2190,10 @@ Leg makePRDCLeg(const LegData& data, const boost::shared_ptr<QuantExt::FxIndex>&
             .withFixingCalendar(calendar)
             .withInArrears(isInArrears);
 
-    auto fixingDays = prdcData->fixingDays();
-    if (fixingDays != Null<Size>())
+    if (auto fixingDays = prdcData->fixingDays(); fixingDays != Null<Size>())
         prdcLeg.withFixingDays(fixingDays);
-    auto denomAmount = prdcData->denominationAmount();
-    if (denomAmount != Null<Real>())
+
+    if (auto denomAmount = prdcData->denominationAmount(); denomAmount != Null<Real>())
         prdcLeg.withDenominationAmount(denomAmount);
 
     if (prdcData->caps().size() > 0)
