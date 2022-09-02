@@ -32,7 +32,6 @@
 
 namespace ore {
 namespace data {
-using namespace ore::data;
 
 //! CouponPricer Builder for CmsLeg
 /*! The coupon pricers are cached by currency

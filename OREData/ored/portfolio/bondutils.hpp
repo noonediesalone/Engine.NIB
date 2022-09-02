@@ -32,8 +32,6 @@
 namespace ore {
 namespace data {
 
-using namespace ore::data;
-
 //! Populate bond data from name and ReferenceDataManager
 /*! The following elements are references and updated, if empty:
     issuerId

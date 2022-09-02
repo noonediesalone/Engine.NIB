@@ -27,7 +27,6 @@ FITNESS FOR A PARTICULAR PURPOSE. See the license for more details.
 
 namespace ore {
 namespace data {
-using namespace ore::data;
 
 //! CouponPricer Builder for PrdcLeg
 /*! The coupon pricers are cached by currency pair
