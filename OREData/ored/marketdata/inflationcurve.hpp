@@ -39,7 +39,6 @@ using ore::data::Conventions;
 using ore::data::CurveConfigurations;
 using QuantLib::Date;
 using QuantLib::InflationTermStructure;
-using namespace data;
 
 //! Wrapper class for building inflation curves
 /*!

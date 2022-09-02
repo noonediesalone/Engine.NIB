@@ -29,7 +29,6 @@
 namespace ore {
 namespace data {
 using std::string;
-using namespace ore::data;
 
 //! Serializable EQ Futures Option
 /*!
