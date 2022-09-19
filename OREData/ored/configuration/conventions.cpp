@@ -201,8 +201,8 @@ FutureConvention::FutureConvention(const string& id, const string& index)
 FutureConvention::FutureConvention(const string& id, const string& index,
                                    const QuantLib::RateAveraging::Type overnightIndexFutureNettingType,
                                    const DateGenerationRule dateGenerationRule)
-    : Convention(id, Type::Future), strIndex_(index),
-      overnightIndexFutureNettingType_(overnightIndexFutureNettingType) {
+    : Convention(id, Type::Future), strIndex_(index), overnightIndexFutureNettingType_(overnightIndexFutureNettingType),
+      dateGenerationRule_(dateGenerationRule) {
     parseIborIndex(strIndex_);
 }
 
