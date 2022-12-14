@@ -35,7 +35,6 @@
 namespace ore {
 namespace data {
 
-using namespace ore::data;
 using namespace QuantExt;
 using namespace QuantLib;
 
