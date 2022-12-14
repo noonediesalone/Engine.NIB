@@ -66,6 +66,7 @@ class CommodityIndex;
 class CommodityIndexedAverageCashFlow;
 class CommodityIndexedCashFlow;
 class EquityMarginCoupon;
+class PrdcFixedCoupon;
 } // namespace QuantExt
 
 namespace ore {
@@ -187,7 +188,8 @@ class FixingDateGetter : public QuantLib::AcyclicVisitor,
                          public QuantLib::Visitor<QuantExt::CmbCoupon>,
                          public QuantLib::Visitor<QuantExt::EquityMarginCoupon>,
                          public QuantLib::Visitor<QuantExt::CommodityIndexedCashFlow>,
-                         public QuantLib::Visitor<QuantExt::CommodityIndexedAverageCashFlow> {
+                         public QuantLib::Visitor<QuantExt::CommodityIndexedAverageCashFlow>,
+                         public QuantLib::Visitor<QuantExt::PrdcFixedCoupon> {
 
 public:
     //! Constructor
@@ -227,6 +229,7 @@ public:
     void visit(QuantExt::EquityMarginCoupon& c) override;
     void visit(QuantExt::CommodityIndexedCashFlow& c) override;
     void visit(QuantExt::CommodityIndexedAverageCashFlow& c) override;
+    void visit(QuantExt::PrdcFixedCoupon& c) override;
     //@}
 
 protected:

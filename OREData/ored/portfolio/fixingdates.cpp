@@ -32,6 +32,7 @@
 #include <qle/cashflows/indexedcoupon.hpp>
 #include <qle/cashflows/nonstandardyoyinflationcoupon.hpp>
 #include <qle/cashflows/overnightindexedcoupon.hpp>
+#include <qle/cashflows/prdccoupon.hpp>
 #include <qle/cashflows/subperiodscoupon.hpp>
 #include <qle/indexes/commodityindex.hpp>
 #include <qle/indexes/fallbackiborindex.hpp>
@@ -529,6 +530,10 @@ void FixingDateGetter::visit(CommodityIndexedAverageCashFlow& c) {
             requiredFixings_.addFixingDate(d, kv.second->name(), d);
         }
     }
+}
+
+void FixingDateGetter::visit(PrdcFixedCoupon& c) {
+    requiredFixings_.addFixingDate(c.fxFixingDate(), c.fxIndex()->name(), c.date());
 }
 
 void addToRequiredFixings(const QuantLib::Leg& leg, const boost::shared_ptr<FixingDateGetter>& fixingDateGetter) {

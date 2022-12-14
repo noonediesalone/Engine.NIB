@@ -67,8 +67,8 @@ public:
     //! Constructor with netting set, with additional fields
     Envelope(const string& counterparty, const string& nettingSetId, const map<string, string>& additionalFields,
              const set<string>& portfolioIds = set<string>())
-        : counterparty_(counterparty), nettingSetId_(nettingSetId), nettingSetDetails_(NettingSetDetails()),
-          portfolioIds_(portfolioIds), additionalFields_(additionalFields) {}
+        : counterparty_(counterparty), nettingSetDetails_(NettingSetDetails(nettingSetId)), portfolioIds_(portfolioIds),
+          additionalFields_(additionalFields) {}
 
     //! Constructor with netting set details, with additional fields
     Envelope(const string& counterparty, const NettingSetDetails& nettingSetDetails,

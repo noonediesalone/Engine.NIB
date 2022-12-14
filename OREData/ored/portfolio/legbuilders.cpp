@@ -253,9 +253,7 @@ Leg PRDCLegBuilder::buildLeg(const LegData& data, const boost::shared_ptr<Engine
                                 engineFactory->market(), configuration, true);
 
     Leg result = makePRDCLeg(data, fxIndex, engineFactory, true, openEndDateReplacement);
-    addToRequiredFixings(
-        result, boost::make_shared<FixingDateGetter>(requiredFixings,
-                                                     std::map<string, string>{{fxIndex->name(), prdcData->fxIndex()}}));
+    addToRequiredFixings(result, boost::make_shared<FixingDateGetter>(requiredFixings));
     return result;
 }
 
