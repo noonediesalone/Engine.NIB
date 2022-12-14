@@ -28,7 +28,6 @@
 namespace ore {
 namespace data {
 
-using namespace ore::data;
 using namespace QuantLib;
 
 class BlackScholesModelBuilder : public BlackScholesModelBuilderBase {
