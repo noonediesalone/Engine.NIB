@@ -20,6 +20,7 @@ FITNESS FOR A PARTICULAR PURPOSE. See the license for more details.
 #include <qle/cashflows/prdccoupon.hpp>
 
 #include <ored/model/crossassetmodelbuilder.hpp>
+#include <ored/model/irlgmdata.hpp>
 #include <ored/utilities/dategrid.hpp>
 #include <qle/methods/multipathgeneratorbase.hpp>
 
@@ -54,7 +55,7 @@ boost::shared_ptr<FloatingRateCouponPricer> CamPrdcCouponPricerBuilder::engineIm
     vector<Time> sigmaTimes = {};
 
     // IR factors
-    std::vector<boost::shared_ptr<IrLgmData>> irConfigs;
+    std::vector<boost::shared_ptr<IrModelData>> irConfigs;
 
     vector<Real> hValues = {0.02};
     vector<Real> aValues = {0.008};
@@ -74,14 +75,14 @@ boost::shared_ptr<FloatingRateCouponPricer> CamPrdcCouponPricerBuilder::engineIm
 
     // Correlations
     map<CorrelationKey, Handle<Quote>> corr;
-    CorrelationFactor f_1{ QuantExt::CrossAssetModelTypes::IR, "EUR", 0 };
-    CorrelationFactor f_2{ QuantExt::CrossAssetModelTypes::IR, "JPY", 0 };
+    CorrelationFactor f_1{QuantExt::CrossAssetModel::AssetType::IR, "EUR", 0};
+    CorrelationFactor f_2{QuantExt::CrossAssetModel::AssetType::IR, "JPY", 0};
     corr[std::make_pair(f_1, f_2)] = Handle<Quote>(boost::make_shared<SimpleQuote>(0.6));
 
     boost::shared_ptr<CrossAssetModelData> config(boost::make_shared<CrossAssetModelData>(irConfigs, fxConfigs, corr));
     boost::shared_ptr<CrossAssetModelBuilder> modelBuilder(new CrossAssetModelBuilder(market_, config));
     boost::shared_ptr<QuantExt::CrossAssetModel> model = *modelBuilder->model();
-    boost::shared_ptr<StochasticProcess> process = model->stateProcess(QuantExt::CrossAssetStateProcess::exact);
+    boost::shared_ptr<StochasticProcess> process = model->stateProcess();
     
     string dateGridStr = "80,3M"; // 20 years
     boost::shared_ptr<DateGrid> dg = boost::make_shared<DateGrid>(dateGridStr);
