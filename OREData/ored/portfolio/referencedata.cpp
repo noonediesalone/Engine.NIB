@@ -78,7 +78,7 @@ XMLNode* BondReferenceDatum::BondData::toXML(XMLDocument& doc) {
     XMLUtils::addChild(doc, node, "IssuerId", issuerId);
     XMLUtils::addChild(doc, node, "CreditCurveId", creditCurveId);
     XMLUtils::addChild(doc, node, "CreditGroup", creditGroup);
-    XMLUtils::addChild(doc, node, "ReferenceCurveId", issuerId);
+    XMLUtils::addChild(doc, node, "ReferenceCurveId", referenceCurveId);
     XMLUtils::addChild(doc, node, "IncomeCurveId", incomeCurveId);
     XMLUtils::addChild(doc, node, "VolatilityCurveId", volatilityCurveId);
     XMLUtils::addChild(doc, node, "SettlementDays", settlementDays);
@@ -86,6 +86,9 @@ XMLNode* BondReferenceDatum::BondData::toXML(XMLDocument& doc) {
     XMLUtils::addChild(doc, node, "IssueDate", issueDate);
     XMLUtils::addChild(doc, node, "PriceQuoteMethod", priceQuoteMethod);
     XMLUtils::addChild(doc, node, "PriceQuoteBaseValue", priceQuoteBaseValue);
+    XMLUtils::addChild(doc, node, "SettlementDays", settlementDays);
+    XMLUtils::addChild(doc, node, "Calendar", calendar);
+    XMLUtils::addChild(doc, node, "IssueDate", issueDate);
     for (auto& bd : legData)
         XMLUtils::appendNode(node, bd.toXML(doc));
     return node;
