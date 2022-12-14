@@ -6,15 +6,16 @@
 #include "utilities.hpp"
 #include "toplevelfixture.hpp"
 #include <boost/test/unit_test.hpp>
+#include <ql/currencies/europe.hpp>
 #include <ql/experimental/callablebonds/callablebond.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/instruments/callabilityschedule.hpp>
+#include <ql/instruments/creditdefaultswap.hpp>
 #include <ql/math/optimization/levenbergmarquardt.hpp>
 #include <ql/math/randomnumbers/rngtraits.hpp>
 #include <ql/math/statistics/incrementalstatistics.hpp>
 #include <ql/methods/montecarlo/multipathgenerator.hpp>
 #include <ql/methods/montecarlo/pathgenerator.hpp>
-#include <ql/quantlib.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/credit/flathazardrate.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
@@ -22,14 +23,12 @@
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
+#include <ql/pricingengines/credit/midpointcdsengine.hpp>
 
 #include <qle/instruments/cdsoption.hpp>
-#include <qle/instruments/creditdefaultswap.hpp>
 #include <qle/methods/multipathgeneratorbase.hpp>
 #include <qle/models/crossassetmodel.hpp>
 #include <qle/models/cdsoptionhelper.hpp>
-#include <qle/pricingengines/midpointcdsengine.hpp>
-
 #include <qle/models/crcirpp.hpp>
 #include <qle/models/cirppconstantfellerparametrization.hpp>
 #include <qle/models/crossassetmodel.hpp>
@@ -59,7 +58,7 @@ using namespace QuantExt;
 using namespace boost::accumulators;
 
 namespace {
-struct CreditModelTestData_flat {
+struct CreditModelTestData_flat: public qle::test::TopLevelFixture {
     CreditModelTestData_flat()
         : referenceDate(29, July, 2017), dts(boost::make_shared<FlatHazardRate>(referenceDate, 0.04, ActualActual(ActualActual::ISDA))),
           yts(boost::make_shared<FlatForward>(referenceDate, 0.02, ActualActual(ActualActual::ISDA))) {
@@ -101,7 +100,9 @@ struct CreditModelTestData_flat {
 }; // IrTSModelTestData
 } // namespace
 
-BOOST_FIXTURE_TEST_SUITE(CrCirppModelTest, CreditModelTestData_flat)
+BOOST_FIXTURE_TEST_SUITE(QuantExtTestSuite, CreditModelTestData_flat)
+
+BOOST_AUTO_TEST_SUITE(CrCirppModelTest)
 
 BOOST_AUTO_TEST_CASE(testMartingaleProperty) {
 
@@ -210,5 +211,7 @@ BOOST_AUTO_TEST_CASE(testMartingaleProperty) {
 
 } // testIrTSMartingaleProperty
 
+
+BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

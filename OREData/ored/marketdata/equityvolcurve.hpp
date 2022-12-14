@@ -54,8 +54,7 @@ public:
                    const std::map<std::string, boost::shared_ptr<EquityVolCurve>>& requiredEquityVolCurves = {},
                    const std::map<std::string, boost::shared_ptr<FXVolCurve>>& requiredFxVolCurves = {},
                    const std::map<std::string, boost::shared_ptr<CorrelationCurve>>& requiredCorrelationCurves = {},
-                   const boost::optional<FXIndexTriangulation>& fxIndices = boost::none,
-                   const bool buildCalibrationInfo = true);
+                   const Market* market = nullptr, const bool buildCalibrationInfo = true);
     //@}
 
     //! \name Inspectors
@@ -77,7 +76,7 @@ public:
 
     //! Build a volatility surface from a collection of expiry and moneyness strike pairs.
     void buildVolatility(const QuantLib::Date& asof, EquityVolatilityCurveConfig& vc,
-                         const VolatilityMoneynessSurfaceConfig& vssc, const Loader& loader,
+                         const VolatilityMoneynessSurfaceConfig& vmsc, const Loader& loader,
                          const QuantLib::Handle<QuantExt::EquityIndex>& eqIndex);
 
     //! Build a volatility surface from a collection of expiry and strike delta pairs 
@@ -87,13 +86,12 @@ public:
 
     //! Build a volatility surface as a proxy from another volatility surface
     void buildVolatility(const QuantLib::Date& asof, const EquityVolatilityCurveSpec& spec,
-                         const CurveConfigurations& curveConfigs,
-                         const ProxyVolatilityConfig& epvc,
+                         const CurveConfigurations& curveConfigs, const ProxyVolatilityConfig& epvc,
                          const map<string, boost::shared_ptr<EquityCurve>>& eqCurves,
                          const map<string, boost::shared_ptr<EquityVolCurve>>& eqVolCurves,
                          const map<string, boost::shared_ptr<FXVolCurve>>& fxVolCurves,
                          const map<string, boost::shared_ptr<CorrelationCurve>>& requiredCorrelationCurves,
-                         const boost::optional<FXIndexTriangulation>& fxIndices = boost::none);
+                         const Market* fxIndices = nullptr);
 
     //! Build the calibration info
     void buildCalibrationInfo(const QuantLib::Date& asof, const CurveConfigurations& curveConfigs,

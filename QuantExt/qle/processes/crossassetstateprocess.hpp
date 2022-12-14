@@ -41,13 +41,11 @@ class CrossAssetModel;
  */
 class CrossAssetStateProcess : public StochasticProcess {
 public:
-    enum discretization { exact, euler };
-
-    CrossAssetStateProcess(const CrossAssetModel* const model, discretization disc,
-                           SalvagingAlgorithm::Type salvaging = SalvagingAlgorithm::Spectral);
+    CrossAssetStateProcess(const CrossAssetModel* const model);
 
     /*! StochasticProcess interface */
     Size size() const override;
+    Size factors() const override;
     Array initialValues() const override;
     Array drift(Time t, const Array& x) const override;
     Matrix diffusion(Time t, const Array& x) const override;
@@ -57,16 +55,15 @@ public:
     virtual void flushCache() const;
 
 protected:
-    virtual Array marginalDiffusion(Time t, const Array& x) const;
-    virtual Matrix diffusionImpl(Time t, const Array& x) const;
-    virtual Array marginalDiffusionImpl(Time t, const Array& x) const;
+    virtual Matrix diffusionOnCorrelatedBrownians(Time t, const Array& x) const;
+    virtual Matrix diffusionOnCorrelatedBrowniansImpl(Time t, const Array& x) const;
     void updateSqrtCorrelation() const;
 
     const CrossAssetModel* const model_;
+
     std::vector<boost::shared_ptr<StochasticProcess>> crCirpp_;
-    const discretization disc_;
-    SalvagingAlgorithm::Type salvaging_;
     Size cirppCount_;
+
     mutable Matrix sqrtCorrelation_;
 
     class ExactDiscretization : public StochasticProcess::discretization {
@@ -113,8 +110,8 @@ protected:
         }
     };
 
-    mutable boost::unordered_map<double, Array, cache_hasher> cache_m_, cache_md_;
-    mutable boost::unordered_map<double, Matrix, cache_hasher> cache_v_, cache_d_;
+    mutable boost::unordered_map<double, Array, cache_hasher> cache_m_;
+    mutable boost::unordered_map<double, Matrix, cache_hasher> cache_d_;
 }; // CrossAssetStateProcess
 
 } // namespace QuantExt

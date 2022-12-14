@@ -33,6 +33,8 @@
 #include <ql/currency.hpp>
 #include <ql/exercise.hpp>
 #include <ql/experimental/fx/deltavolquote.hpp>
+#include <ql/experimental/barrieroption/doublebarriertype.hpp>
+#include <ql/instruments/barriertype.hpp>
 #include <ql/instruments/averagetype.hpp>
 #include <ql/instruments/swaption.hpp>
 #include <ql/instruments/capfloor.hpp>
@@ -51,10 +53,11 @@
 #include <ql/types.hpp>
 
 #include <qle/cashflows/commoditycashflow.hpp>
-#include <qle/instruments/cdsoption.hpp>
-#include <qle/models/crossassetmodel.hpp>
-#include <qle/methods/multipathgeneratorbase.hpp>
 #include <qle/currencies/configurablecurrency.hpp>
+#include <qle/indexes/bondindex.hpp>
+#include <qle/instruments/cdsoption.hpp>
+#include <qle/methods/multipathgeneratorbase.hpp>
+#include <qle/models/crossassetmodel.hpp>
 
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/tokenizer.hpp>
@@ -372,6 +375,18 @@ QuantLib::DeltaVolQuote::DeltaType parseDeltaType(const std::string& s);
 */
 QuantLib::Rounding::Type parseRoundingType(const std::string& s);
   
+//! Convert std::string to QuantLib::BarrierType
+/*!
+  \ingroup utilities
+*/
+QuantLib::Barrier::Type parseBarrierType(const string& s);
+
+//! Convert std::string to QuantLib::DoubleBarrierType
+/*!
+  \ingroup utilities
+*/
+QuantLib::DoubleBarrier::Type parseDoubleBarrierType(const string& s);
+
 /*! Attempt to parse string \p str to \p obj of type \c T using \p parser
     \param[in]  str    The string we wish to parse.
     \param[out] obj    The resulting object if the parsing was successful.
@@ -430,7 +445,7 @@ QuantLib::YoYInflationCapFloor::Type parseYoYInflationCapFloorType(const std::st
 /*! Convert text to QuantExt::CrossAssetModelTypes::AssetType
     \ingroup utilities
 */
-QuantExt::CrossAssetModelTypes::AssetType parseCamAssetType(const std::string& s);
+QuantExt::CrossAssetModel::AssetType parseCamAssetType(const std::string& s);
 
 /*! Convert boost::any to pair<string,string>, including the valueType and the value
     \ingroup utilities
@@ -462,7 +477,7 @@ std::ostream& operator<<(std::ostream& os, SobolBrownianGenerator::Ordering t);
 std::ostream& operator<<(std::ostream& os, SobolRsg::DirectionIntegers t);
     
 //! Enum to string used in ScenarioGeneratorData's toXML
-std::ostream& operator<<(std::ostream& os, QuantExt::CrossAssetStateProcess::discretization type);
+std::ostream& operator<<(std::ostream& os, QuantExt::CrossAssetModel::Discretization type);
 
 //! Convert text to CommodityFutureConvention::AveragingData::CalculationPeriod
 CommodityFutureConvention::AveragingData::CalculationPeriod parseAveragingDataPeriod(const std::string& s);
@@ -492,8 +507,43 @@ QuantExt::CdsOption::StrikeType parseCdsOptionStrikeType(const std::string& s);
 */
 QuantLib::Average::Type parseAverageType(const std::string& s);
 
+/*! Convert text to QuantExt::BondData::PriceQuoteMethod
+\ingroup utilities
+ */
+QuantExt::BondIndex::PriceQuoteMethod parsePriceQuoteMethod(const std::string& s);
+
+//! Write PriceQuoteMethod to stream
+std::ostream& operator<<(std::ostream& os, QuantExt::BondIndex::PriceQuoteMethod);
+
 //! Helper function to get the two tokens in a correlation name Index2:Index1
 std::vector<std::string> getCorrelationTokens(const std::string& name);
 
+//! Convert FX pair to market standard dominance
+/*!
+ Convert FX pair to market standard dominance, e.g. "USD" & "GBP" -> "GBPUSD", "USD" & "JPY" -> "USDJPY"
+  \ingroup utilities
+*/
+string fxDominance(const string& s1, const string& s2);
+
+//! Convert FX index name to market standard dominance
+string normaliseFxIndex(const std::string& indexName);
+
+enum class MomentType { Variance, Volatility };
+
+//! Convert text to oreplus::data::MomentType
+/*!
+\ingroup utilities
+*/
+MomentType parseMomentType(const std::string& s);
+
+//! Enumeration CreditPortfolioSensitivityDecomposition
+enum class CreditPortfolioSensitivityDecomposition { Underlying, NotionalWeighted, LossWeighted, DeltaWeighted };
+
+//! Convert text to CreditPortfolioSensitivitiyDecomposition
+CreditPortfolioSensitivityDecomposition parseCreditPortfolioSensitivityDecomposition(const std::string& s);
+
+//! Output operator for CreditPortfolioSensitivityDecomposition
+std::ostream& operator<<(std::ostream& os, const CreditPortfolioSensitivityDecomposition d);
+    
 } // namespace data
 } // namespace ore

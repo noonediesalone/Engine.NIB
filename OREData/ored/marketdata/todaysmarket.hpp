@@ -101,7 +101,9 @@ public:
         //! the ibor fallback config
         const IborFallbackConfig& iborFallbackConfig = IborFallbackConfig::defaultConfig(),
         //! build calibration info?
-        const bool buildCalibrationInfo = true);
+        const bool buildCalibrationInfo = true,
+        //! support pseudo currencies
+        const bool handlePseudoCurrencies = true);
 
     boost::shared_ptr<TodaysMarketCalibrationInfo> calibrationInfo() const { return calibrationInfo_; }
 
@@ -140,19 +142,15 @@ private:
     // build a single market object
     void buildNode(const std::string& configuration, Node& node) const;
 
-    // fx triangulation initially built using all fx spot quotes from the loader; this is provided to
-    // curve builders that require fx spots (e.g. xccy discount curves)
-    mutable FXTriangulation fxT_;
-
     // calibration results
     boost::shared_ptr<TodaysMarketCalibrationInfo> calibrationInfo_;
 
     // cached market objects, the key of the maps is the curve spec name, except for swap indices, see below
     mutable map<string, boost::shared_ptr<YieldCurve>> requiredYieldCurves_;
-    mutable map<string, boost::shared_ptr<FXSpot>> requiredFxSpots_;
     mutable map<string, boost::shared_ptr<FXVolCurve>> requiredFxVolCurves_;
     mutable map<string, boost::shared_ptr<GenericYieldVolCurve>> requiredGenericYieldVolCurves_;
-    mutable map<string, boost::shared_ptr<CapFloorVolCurve>> requiredCapFloorVolCurves_;
+    mutable map<string, std::pair<boost::shared_ptr<CapFloorVolCurve>, std::pair<std::string, QuantLib::Period>>>
+        requiredCapFloorVolCurves_;
     mutable map<string, boost::shared_ptr<DefaultCurve>> requiredDefaultCurves_;
     mutable map<string, boost::shared_ptr<CDSVolCurve>> requiredCDSVolCurves_;
     mutable map<string, boost::shared_ptr<BaseCorrelationCurve>> requiredBaseCorrelationCurves_;

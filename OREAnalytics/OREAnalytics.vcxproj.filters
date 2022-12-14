@@ -219,6 +219,12 @@
     <ClInclude Include="orea\scenario\clonedscenariogenerator.hpp">
       <Filter>scenario</Filter>
     </ClInclude>
+    <ClInclude Include="orea\engine\bufferedsensitivitystream.hpp">
+      <Filter>engine</Filter>
+    </ClInclude>
+    <ClInclude Include="orea\engine\amcvaluationengine.hpp">
+      <Filter>engine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="orea\aggregation\collateralaccount.cpp">
@@ -338,9 +344,6 @@
     <ClCompile Include="orea\engine\filteredsensitivitystream.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="orea\app\structuredanalyticserror.cpp">
-      <Filter>app</Filter>
-    </ClCompile>
     <ClCompile Include="orea\cube\cubeinterpretation.cpp">
       <Filter>cube</Filter>
     </ClCompile>
@@ -380,11 +383,14 @@
     <ClCompile Include="orea\engine\npvrecord.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="orea\app\structuredanalyticswarning.cpp">
-      <Filter>app</Filter>
-    </ClCompile>
     <ClCompile Include="orea\scenario\clonedscenariogenerator.cpp">
       <Filter>scenario</Filter>
+    </ClCompile>
+    <ClCompile Include="orea\engine\bufferedsensitivitystream.cpp">
+      <Filter>engine</Filter>
+    </ClCompile>
+    <ClCompile Include="orea\engine\amcvaluationengine.cpp">
+      <Filter>engine</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

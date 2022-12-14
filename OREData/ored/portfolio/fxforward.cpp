@@ -41,12 +41,22 @@ void FxForward::build(const boost::shared_ptr<EngineFactory>& engineFactory) {
     // Derive settlement date from payment data parameters
     Date payDate;
     if (payDate_.empty()) {
-        //LOG("Attempting paydate advance");
-        PaymentLag paymentLag = parsePaymentLag(payLag_);
+        Natural conventionalLag = 0;
+        Calendar conventionalCalendar = NullCalendar();
+        BusinessDayConvention conventionalBdc = Unadjusted;
+        if (!fxIndex_.empty() && settlement_ == "Cash") {
+            std::tie(conventionalLag, conventionalCalendar, conventionalBdc) =
+                getFxIndexConventions(fxIndex_.empty() ? boughtCurrency_ + soldCurrency_ : fxIndex_);
+        }
+        PaymentLag paymentLag;
+        if (payLag_.empty())
+            paymentLag = conventionalLag;
+        else
+            paymentLag = parsePaymentLag(payLag_);
         Period payLag = boost::apply_visitor(PaymentLagPeriod(), paymentLag);
-        Calendar payCalendar = payCalendar_.empty() ? NullCalendar() : parseCalendar(payCalendar_);
+        Calendar payCalendar = payCalendar_.empty() ? conventionalCalendar : parseCalendar(payCalendar_);
         BusinessDayConvention payConvention =
-            payConvention_.empty() ? Unadjusted : parseBusinessDayConvention(payConvention_);
+            payConvention_.empty() ? conventionalBdc : parseBusinessDayConvention(payConvention_);
         payDate = payCalendar.advance(maturityDate, payLag, payConvention);
     } else {
         payDate = parseDate(payDate_);
@@ -74,8 +84,7 @@ void FxForward::build(const boost::shared_ptr<EngineFactory>& engineFactory) {
         fxIndex = buildFxIndex(fxIndex_, nonPayCcy.code(), payCcy.code(), engineFactory->market(),
                                  engineFactory->configuration(MarketContext::pricing));
         fixingDate = fxIndex->fixingCalendar().adjust(maturityDate);
-        if (maturityDate < Settings::instance().evaluationDate())
-            requiredFixings_.addFixingDate(fixingDate, fxIndex_, payDate);
+	requiredFixings_.addFixingDate(fixingDate, fxIndex_, payDate);
     }
 
     QL_REQUIRE(tradeActions().empty(), "TradeActions not supported for FxForward");

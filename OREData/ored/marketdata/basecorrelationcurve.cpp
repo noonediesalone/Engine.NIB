@@ -20,6 +20,7 @@
 #include <ored/portfolio/legdata.hpp>
 #include <ored/portfolio/referencedata.hpp>
 #include <ored/utilities/log.hpp>
+#include <ored/utilities/marketdata.hpp>
 #include <ored/utilities/parsers.hpp>
 
 #include <ql/math/comparison.hpp>
@@ -27,6 +28,7 @@
 
 #include <qle/utilities/interpolation.hpp>
 #include <qle/utilities/time.hpp>
+#include <qle/math/flatextrapolation2d.hpp>
 
 using namespace QuantLib;
 using namespace std;
@@ -111,16 +113,15 @@ BaseCorrelationCurve::BaseCorrelationCurve(
         };
         map<pair<Period, Real>, Handle<Quote>, decltype(mpCmp)> data(mpCmp);
 
-        for (const boost::shared_ptr<MarketDatum>& md : loader.loadQuotes(asof)) {
+        std::ostringstream ss;
+        ss << MarketDatum::InstrumentType::CDS_INDEX << "/" << MarketDatum::QuoteType::BASE_CORRELATION << "/*";
+        Wildcard w(ss.str());
+        for (const auto& md : loader.get(w, asof)) {
 
-            // Go to next quote if the market data point's date does not equal to asof.
-            if (md->asofDate() != asof)
-                continue;
+            QL_REQUIRE(md->asofDate() == asof, "MarketDatum asofDate '" << md->asofDate() << "' <> asof '" << asof << "'");
 
-            // Go to next quote if not a base correlation quote.
             auto q = boost::dynamic_pointer_cast<BaseCorrelationQuote>(md);
-            if (!q)
-                continue;
+            QL_REQUIRE(q, "Internal error: could not downcast MarketDatum '" << md->name() << "' to BaseCorrelationQuote");
 
             // Go to next quote if index name in the quote does not match the cds vol configuration name.
             if (config.quoteName() != q->cdsIndexName())
@@ -237,7 +238,7 @@ BaseCorrelationCurve::BaseCorrelationCurve(
         for (Size i = 0; i < tmpDps.size(); ++i)
             quotes[i].push_back(quotes[i][tmpTerms.size() - 2]);
 
-        baseCorrelation_ = boost::make_shared<BilinearBaseCorrelationTermStructure>(
+        baseCorrelation_ = boost::make_shared<QuantExt::InterpolatedBaseCorrelationTermStructure<QuantExt::BilinearFlat>>(
             config.settlementDays(), config.calendar(), config.businessDayConvention(), tmpTerms, tmpDps, quotes,
             config.dayCounter(), config.startDate(), config.rule());
 
@@ -256,22 +257,26 @@ BaseCorrelationCurve::BaseCorrelationCurve(
 vector<Real> BaseCorrelationCurve::adjustForLosses(const vector<Real>& detachPoints) const {
 
     const auto& cId = spec_.curveConfigID();
-    DLOG("BaseCorrelationCurve::adjustForLosses: start adjusting for losses for base correlation " << cId);
+
+    const auto& [qualifier, period] = splitCurveIdWithTenor(cId);
+
+    DLOG("BaseCorrelationCurve::adjustForLosses: start adjusting for losses for base correlation " << qualifier);
 
     if (!referenceData_) {
         DLOG("Reference data manager is null so cannot adjust for losses.");
         return detachPoints;
     }
 
-    if (!referenceData_->hasData(CreditIndexReferenceDatum::TYPE, cId)) {
-        DLOG("Reference data manager does not have index credit data for " << cId << " so cannot adjust for losses.");
+    if (!referenceData_->hasData(CreditIndexReferenceDatum::TYPE, qualifier)) {
+        DLOG("Reference data manager does not have index credit data for " << qualifier
+                                                                           << " so cannot adjust for losses.");
         return detachPoints;
     }
 
     auto crd = boost::dynamic_pointer_cast<CreditIndexReferenceDatum>(
-        referenceData_->getData(CreditIndexReferenceDatum::TYPE, cId));
+        referenceData_->getData(CreditIndexReferenceDatum::TYPE, qualifier));
     if (!crd) {
-        DLOG("Index credit data for " << cId << " is not of correct type so cannot adjust for losses.");
+        DLOG("Index credit data for " << qualifier << " is not of correct type so cannot adjust for losses.");
         return detachPoints;
     }
 
@@ -308,12 +313,13 @@ vector<Real> BaseCorrelationCurve::adjustForLosses(const vector<Real>& detachPoi
     TLOG("Total weight = " << totalWeight);
 
     if (!close(totalRemainingWeight, 1.0) && totalRemainingWeight > 1.0) {
-        ALOG("Total remaining weight is greater than 1, possible error in CreditIndexReferenceDatum for " << cId);
+        ALOG("Total remaining weight is greater than 1, possible error in CreditIndexReferenceDatum for " << qualifier);
     }
 
     if (!close(totalWeight, 1.0)) {
-        ALOG("Expected the total weight (" << totalWeight << " = " << totalRemainingWeight << " + " <<
-            totalPriorWeight << ") to equal 1, possible error in CreditIndexReferenceDatum for " << cId);
+        ALOG("Expected the total weight (" << totalWeight << " = " << totalRemainingWeight << " + " << totalPriorWeight
+                                           << ") to equal 1, possible error in CreditIndexReferenceDatum for "
+                                           << qualifier);
     }
 
     if (close(totalRemainingWeight, 0.0)) {
@@ -322,7 +328,7 @@ vector<Real> BaseCorrelationCurve::adjustForLosses(const vector<Real>& detachPoi
     }
 
     if (close(totalRemainingWeight, 1.0)) {
-        DLOG("Index factor for " << cId << " is 1 so adjustment for losses not required.");
+        DLOG("Index factor for " << qualifier << " is 1 so adjustment for losses not required.");
         return detachPoints;
     }
 
@@ -349,7 +355,7 @@ vector<Real> BaseCorrelationCurve::adjustForLosses(const vector<Real>& detachPoi
         result.push_back(newDetach);
     }
 
-    DLOG("BaseCorrelationCurve::adjustForLosses: finished adjusting for losses for base correlation " << cId);
+    DLOG("BaseCorrelationCurve::adjustForLosses: finished adjusting for losses for base correlation " << qualifier);
 
     return result;
 }

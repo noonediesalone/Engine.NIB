@@ -28,6 +28,7 @@
 #include <ored/portfolio/swap.hpp>
 #include <ored/utilities/indexparser.hpp>
 #include <ored/utilities/log.hpp>
+#include <ored/utilities/to_string.hpp>
 #include <ored/utilities/parsers.hpp>
 #include <ql/cashflows/cpicoupon.hpp>
 #include <ql/cashflows/simplecashflow.hpp>
@@ -40,6 +41,20 @@ using namespace QuantExt;
 
 namespace ore {
 namespace data {
+
+QuantExt::BondIndex::PriceQuoteMethod BondData::priceQuoteMethod() const {
+    return priceQuoteMethod_.empty() ? QuantExt::BondIndex::PriceQuoteMethod::PercentageOfPar
+                                     : parsePriceQuoteMethod(priceQuoteMethod_);
+}
+
+Real BondData::priceQuoteBaseValue() const {
+    if (priceQuoteBaseValue_.empty())
+        return 1.0;
+    Real result;
+    if (tryParseReal(priceQuoteBaseValue_, result))
+        return result;
+    QL_FAIL("invalid PriceQuoteBaseValue '" << priceQuoteBaseValue_ << "'");
+}
 
 void BondData::fromXML(XMLNode* node) {
     XMLUtils::checkNode(node, "BondData");
@@ -54,6 +69,8 @@ void BondData::fromXML(XMLNode* node) {
     settlementDays_ = XMLUtils::getChildValue(node, "SettlementDays", false);
     calendar_ = XMLUtils::getChildValue(node, "Calendar", false);
     issueDate_ = XMLUtils::getChildValue(node, "IssueDate", false);
+    priceQuoteMethod_ = XMLUtils::getChildValue(node, "PriceQuoteMethod", false);
+    priceQuoteBaseValue_ = XMLUtils::getChildValue(node, "PriceQuoteBaseValue", false);
     if (auto n = XMLUtils::getChildNode(node, "BondNotional")) {
         bondNotional_ = parseReal(XMLUtils::getNodeValue(n));
     } else {
@@ -95,6 +112,10 @@ XMLNode* BondData::toXML(XMLDocument& doc) {
         XMLUtils::addChild(doc, bondNode, "Calendar", calendar_);
     if (!issueDate_.empty())
         XMLUtils::addChild(doc, bondNode, "IssueDate", issueDate_);
+    if(!priceQuoteMethod_.empty())
+	XMLUtils::addChild(doc, bondNode, "PriceQuoteMethod", priceQuoteMethod_);
+    if(!priceQuoteBaseValue_.empty())
+	XMLUtils::addChild(doc, bondNode, "PriceQuoteBaseValue", priceQuoteBaseValue_);
     XMLUtils::addChild(doc, bondNode, "BondNotional", bondNotional_);
     for (auto& c : coupons_)
         XMLUtils::appendNode(bondNode, c.toXML(doc));
@@ -151,9 +172,10 @@ void BondData::initialise() {
 void BondData::populateFromBondReferenceData(const boost::shared_ptr<BondReferenceDatum>& referenceDatum,
 					       const std::string& startDate, const std::string& endDate) {
     DLOG("Got BondReferenceDatum for name " << securityId_ << " overwrite empty elements in trade");
-    ore::data::populateFromBondReferenceData(issuerId_, settlementDays_, calendar_, issueDate_, creditCurveId_,
-                                             creditGroup_, referenceCurveId_, incomeCurveId_, volatilityCurveId_,
-                                             coupons_, securityId_, referenceDatum, startDate, endDate);
+    ore::data::populateFromBondReferenceData(issuerId_, settlementDays_, calendar_, issueDate_, priceQuoteMethod_,
+                                             priceQuoteBaseValue_, creditCurveId_, creditGroup_, referenceCurveId_,
+                                             incomeCurveId_, volatilityCurveId_, coupons_, securityId_, referenceDatum,
+                                             startDate, endDate);
     initialise();
     checkData();
 }
@@ -262,6 +284,22 @@ Bond::underlyingIndices(const boost::shared_ptr<ReferenceDataManager>& reference
     return result;
 }
 
+double BondBuilder::Result::inflationFactor() const {
+    if (!isInflationLinked) {
+        return 1.0;
+    } else {
+        QL_REQUIRE(bond, "need to set the bond before calling inflationFactor()");
+        double factor = 1.0;
+        try {
+            factor = QuantExt::inflationLinkedBondQuoteFactor(bond);
+        } catch (const std::exception& e) {
+            ALOG("Failed to compute the inflation price factor for the bond "
+                 << securityId << ", fallback to use factor 1, got " << e.what());
+        }
+        return factor;
+    }
+}
+
 BondBuilder::Result BondFactory::build(const boost::shared_ptr<EngineFactory>& engineFactory,
                                        const boost::shared_ptr<ReferenceDataManager>& referenceData,
                                        const std::string& securityId) const {
@@ -303,15 +341,17 @@ BondBuilder::Result VanillaBondBuilder::build(const boost::shared_ptr<EngineFact
 
     Result res;
     res.bond = qlBond;
+
     if (data.isInflationLinked()) {
-        res.inflationFactor = QuantExt::inflationLinkedBondQuoteFactor(qlBond);
-        res.isInflationLinked = true;
+        res.isInflationLinked = true;       
     }
     res.hasCreditRisk = data.hasCreditRisk() && !data.creditCurveId().empty();
     res.currency = data.currency();
     res.creditCurveId = data.creditCurveId();
     res.securityId = data.securityId();
     res.creditGroup = data.creditGroup();
+    res.priceQuoteMethod = data.priceQuoteMethod();
+    res.priceQuoteBaseValue = data.priceQuoteBaseValue();
     return res;
 }
 

@@ -28,6 +28,7 @@ FITNESS FOR A PARTICULAR PURPOSE. See the license for more details.
 #include <ql/cashflows/couponpricer.hpp>
 #include <ql/cashflows/cpicouponpricer.hpp>
 #include <ql/indexes/inflationindex.hpp>
+#include <qle/utilities/inflation.hpp>
 
 namespace ore {
 namespace data {
@@ -50,7 +51,19 @@ protected:
         std::string ccyCode = cpiIndex->currency().code();
         Handle<YieldTermStructure> discountCurve =
             market_->discountCurve(ccyCode, configuration(MarketContext::pricing));
-        return boost::make_shared<QuantExt::BlackCPICouponPricer>(vol, discountCurve);
+
+         bool useLastFixingDate =
+            parseBool(engineParameter("useLastFixingDate", std::vector<std::string>(), false, "false"));
+
+         bool isLogNormal = QuantExt::ZeroInflation::isCPIVolSurfaceLogNormal(vol.currentLink());
+
+         if (isLogNormal) {
+             return boost::make_shared<QuantExt::BlackCPICouponPricer>(vol, discountCurve, useLastFixingDate);
+         } else {
+             return boost::make_shared<QuantExt::BachelierCPICouponPricer>(vol, discountCurve, useLastFixingDate);
+         }
+
+        
     }
 };
 
@@ -69,7 +82,17 @@ protected:
         std::string ccyCode = cpiIndex->currency().code();
         Handle<YieldTermStructure> discountCurve =
             market_->discountCurve(ccyCode, configuration(MarketContext::pricing));
-        return boost::make_shared<QuantExt::BlackCPICashFlowPricer>(vol, discountCurve);
+
+        bool useLastFixingDate =
+            parseBool(engineParameter("useLastFixingDate", std::vector<std::string>(), false, "false"));
+
+        bool isLogNormal = QuantExt::ZeroInflation::isCPIVolSurfaceLogNormal(vol.currentLink());
+
+        if (isLogNormal) {
+            return boost::make_shared<QuantExt::BlackCPICashFlowPricer>(vol, discountCurve, useLastFixingDate);
+        } else {
+            return boost::make_shared<QuantExt::BachelierCPICashFlowPricer>(vol, discountCurve, useLastFixingDate);
+        }
     }
 };
 } // namespace data

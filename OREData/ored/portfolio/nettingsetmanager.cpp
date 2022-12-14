@@ -81,8 +81,8 @@ boost::shared_ptr<NettingSetDefinition> NettingSetManager::get(const NettingSetD
 }
 
 boost::shared_ptr<NettingSetDefinition> NettingSetManager::get(const string& id) const {
-    auto found =
-        std::find_if(data_.begin(), data_.end(), [&](const auto& details) { return details.first.nettingSetId() == id; });
+    auto found = std::find_if(data_.begin(), data_.end(),
+                              [&id](const auto& details) { return details.first.nettingSetId() == id; });
     if (found != data_.end())
         return found->second;
     else
@@ -98,7 +98,6 @@ void NettingSetManager::fromXML(XMLNode* node) {
             boost::shared_ptr<NettingSetDefinition> nettingSet(new NettingSetDefinition(child));
             add(nettingSet);
         } catch (std::exception& ex) {
-            ALOG(StructuredConfigurationWarningMessage("Netting set manager", "",
                                                        "Netting set definnition failed to parse", ex.what()));
         }
     }

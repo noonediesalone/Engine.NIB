@@ -53,6 +53,8 @@ void BondReferenceDatum::BondData::fromXML(XMLNode* node) {
     settlementDays = XMLUtils::getChildValue(node, "SettlementDays", true);
     calendar = XMLUtils::getChildValue(node, "Calendar", true);
     issueDate = XMLUtils::getChildValue(node, "IssueDate", true);
+    priceQuoteMethod = XMLUtils::getChildValue(node, "PriceQuoteMethod", false);
+    priceQuoteBaseValue = XMLUtils::getChildValue(node, "PriceQuoteBaseValue", false);
 
     legData.clear();
     XMLNode* legNode = XMLUtils::getChildNode(node, "LegData");
@@ -75,6 +77,8 @@ XMLNode* BondReferenceDatum::BondData::toXML(XMLDocument& doc) {
     XMLUtils::addChild(doc, node, "SettlementDays", settlementDays);
     XMLUtils::addChild(doc, node, "Calendar", calendar);
     XMLUtils::addChild(doc, node, "IssueDate", issueDate);
+    XMLUtils::addChild(doc, node, "PriceQuoteMethod", priceQuoteMethod);
+    XMLUtils::addChild(doc, node, "PriceQuoteBaseValue", priceQuoteBaseValue);
     for (auto& bd : legData)
         XMLUtils::appendNode(node, bd.toXML(doc));
     return node;

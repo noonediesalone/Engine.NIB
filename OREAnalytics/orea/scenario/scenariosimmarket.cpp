@@ -24,7 +24,7 @@
 #include <orea/engine/observationmode.hpp>
 #include <orea/scenario/scenariosimmarket.hpp>
 #include <orea/scenario/simplescenario.hpp>
-#include <ql/experimental/credit/basecorrelationstructure.hpp>
+#include <qle/termstructures/credit/basecorrelationstructure.hpp>
 #include <ql/instruments/makecapfloor.hpp>
 #include <ql/math/interpolations/loginterpolation.hpp>
 #include <ql/termstructures/credit/interpolatedsurvivalprobabilitycurve.hpp>
@@ -59,6 +59,7 @@
 #include <qle/instruments/makeoiscapfloor.hpp>
 #include <qle/termstructures/blackvariancesurfacestddevs.hpp>
 #include <qle/termstructures/blackvolconstantspread.hpp>
+#include <qle/termstructures/credit/spreadedbasecorrelationcurve.hpp>
 #include <qle/termstructures/dynamicblackvoltermstructure.hpp>
 #include <qle/termstructures/dynamiccpivolatilitystructure.hpp>
 #include <qle/termstructures/dynamicswaptionvolmatrix.hpp>
@@ -93,8 +94,6 @@ using namespace QuantLib;
 using namespace QuantExt;
 using namespace ore::data;
 using namespace std;
-
-typedef QuantLib::BaseCorrelationTermStructure<QuantLib::BilinearInterpolation> BilinearBaseCorrelationTermStructure;
 
 namespace {
 
@@ -284,23 +283,22 @@ void ScenarioSimMarket::addYieldCurve(const boost::shared_ptr<Market>& initMarke
 
 ScenarioSimMarket::ScenarioSimMarket(const boost::shared_ptr<Market>& initMarket,
                                      const boost::shared_ptr<ScenarioSimMarketParameters>& parameters,
-                                     const std::string& configuration,
-                                     const CurveConfigurations& curveConfigs,
+                                     const std::string& configuration, const CurveConfigurations& curveConfigs,
                                      const TodaysMarketParameters& todaysMarketParams, const bool continueOnError,
                                      const bool useSpreadedTermStructures, const bool cacheSimData,
-                                     const bool allowPartialScenarios, const IborFallbackConfig& iborFallbackConfig)
+                                     const bool allowPartialScenarios, const IborFallbackConfig& iborFallbackConfig,
+                                     const bool handlePseudoCurrencies)
     : ScenarioSimMarket(initMarket, parameters, boost::make_shared<FixingManager>(initMarket->asofDate()),
                         configuration, curveConfigs, todaysMarketParams, continueOnError, useSpreadedTermStructures,
-                        cacheSimData, allowPartialScenarios, iborFallbackConfig) {}
+                        cacheSimData, allowPartialScenarios, iborFallbackConfig, handlePseudoCurrencies) {}
 
 ScenarioSimMarket::ScenarioSimMarket(
     const boost::shared_ptr<Market>& initMarket, const boost::shared_ptr<ScenarioSimMarketParameters>& parameters,
-    const boost::shared_ptr<FixingManager>& fixingManager,
-    const std::string& configuration, const ore::data::CurveConfigurations& curveConfigs,
-    const ore::data::TodaysMarketParameters& todaysMarketParams, const bool continueOnError,
-    const bool useSpreadedTermStructures, const bool cacheSimData, const bool allowPartialScenarios,
-    const IborFallbackConfig& iborFallbackConfig)
-    : SimMarket(), parameters_(parameters), fixingManager_(fixingManager),
+    const boost::shared_ptr<FixingManager>& fixingManager, const std::string& configuration,
+    const ore::data::CurveConfigurations& curveConfigs, const ore::data::TodaysMarketParameters& todaysMarketParams,
+    const bool continueOnError, const bool useSpreadedTermStructures, const bool cacheSimData,
+    const bool allowPartialScenarios, const IborFallbackConfig& iborFallbackConfig, const bool handlePseudoCurrencies)
+    : SimMarket(handlePseudoCurrencies), parameters_(parameters), fixingManager_(fixingManager),
       filter_(boost::make_shared<ScenarioFilter>()), useSpreadedTermStructures_(useSpreadedTermStructures),
       cacheSimData_(cacheSimData), allowPartialScenarios_(allowPartialScenarios),
       iborFallbackConfig_(iborFallbackConfig) {
@@ -333,26 +331,16 @@ ScenarioSimMarket::ScenarioSimMarket(
 	    boost::timer::cpu_timer timer;
 
             switch (param.first) {
-            case RiskFactorKey::KeyType::FXSpot:
+            case RiskFactorKey::KeyType::FXSpot: {
+		std::map<std::string, Handle<Quote>> fxQuotes;
                 for (const auto& name : param.second.second) {
                     bool simDataWritten = false;
                     try {
                         // constructing fxSpots_
                         DLOG("adding " << name << " FX rates");
-                        boost::shared_ptr<SimpleQuote> q(
-                            new SimpleQuote(initMarket->fxSpot(name, configuration)->value()));
-                        Handle<Quote> qh(q);
-
-                        // build the fxIndex
-                        auto initMarFxInd = initMarket->fxIndex(name);
-                        auto fxInd = Handle<QuantExt::FxIndex>(boost::make_shared<QuantExt::FxIndex>(
-                            name, initMarFxInd->fixingDays(), initMarFxInd->sourceCurrency(),
-                            initMarFxInd->targetCurrency(), 
-                                initMarFxInd->fixingCalendar(), qh,
-                            discountCurve(initMarFxInd->sourceCurrency().code(), configuration),
-                            discountCurve(initMarFxInd->targetCurrency().code(), configuration), false)); 
-                            
-                        fxIndices_[Market::defaultConfiguration].addIndex(name, fxInd);
+			auto q = boost::make_shared<SimpleQuote>(initMarket->fxSpot(name, configuration)->value());
+                        auto qh = Handle<Quote>(q);
+                        fxQuotes[name] = qh;
                         // Check if the risk factor is simulated before adding it
                         if (param.second.first) {
                             simDataTmp.emplace(std::piecewise_construct, std::forward_as_tuple(param.first, name),
@@ -364,7 +352,9 @@ ScenarioSimMarket::ScenarioSimMarket(
                         processException(continueOnError, e, name, param.first, simDataWritten);
                     }
                 }
+		fx_ = boost::make_shared<FXTriangulation>(fxQuotes);
                 break;
+            }
 
             case RiskFactorKey::KeyType::DiscountCurve:
             case RiskFactorKey::KeyType::YieldCurve:
@@ -869,6 +859,10 @@ ScenarioSimMarket::ScenarioSimMarket(
                     try {
                         LOG("building " << name << " cap/floor volatility curve...");
                         Handle<OptionletVolatilityStructure> wrapper = initMarket->capFloorVol(name, configuration);
+                        auto [iborIndexName, rateComputationPeriod] =
+                            initMarket->capFloorVolIndexBase(name, configuration);
+                        boost::shared_ptr<IborIndex> iborIndex =
+                            iborIndexName.empty() ? nullptr : parseIborIndex(iborIndexName);
 
                         LOG("Initial market cap/floor volatility type = " << wrapper->volatilityType());
 
@@ -880,43 +874,32 @@ ScenarioSimMarket::ScenarioSimMarket(
 
                             // Try to get the ibor index that the cap floor structure relates to
                             // We use this to convert Period to Date below to sample from `wrapper`
-                            boost::shared_ptr<IborIndex> iborIndex;
                             Natural settleDays = 0;
                             bool isOis = false;
-                            Period rateComputationPeriod = 3 * Months;
                             Calendar iborCalendar;
                             Size onSettlementDays = 0;
-
-                            // the name could be an index name, in this case we use that index
-			    tryParseIborIndex(name, iborIndex);
 
                             // get the curve config for the index, or if not available for its ccy
                             boost::shared_ptr<CapFloorVolatilityCurveConfig> config;
                             if (curveConfigs.hasCapFloorVolCurveConfig(name)) {
                                 config = curveConfigs.capFloorVolCurveConfig(name);
                             } else {
-                                boost::shared_ptr<IborIndex> ind;
-                                if (tryParseIborIndex(name, ind) &&
-                                    curveConfigs.hasCapFloorVolCurveConfig(ind->currency().code())) {
-                                    config = curveConfigs.capFloorVolCurveConfig(ind->currency().code());
+                                if (iborIndex && curveConfigs.hasCapFloorVolCurveConfig(iborIndex->currency().code())) {
+                                    config = curveConfigs.capFloorVolCurveConfig(iborIndex->currency().code());
                                 }
                             }
 
 			    // get info from the config if we have one
                             if (config) {
                                 settleDays = config->settleDays();
-				if(iborIndex == nullptr) {
-				    tryParseIborIndex(config->index(), iborIndex);
-				}
-				rateComputationPeriod = config->rateComputationPeriod();
 				onSettlementDays = config->onCapSettlementDays();
                             }
 
-			    // derive info from the ibor index if we have one
-			    if(iborIndex) {
+			    // derive info from the ibor index
+                            if (iborIndex) {
                                 iborCalendar = iborIndex->fixingCalendar();
                                 isOis = boost::dynamic_pointer_cast<OvernightIndex>(iborIndex) != nullptr;
-			    }
+                            }
 
                             vector<Period> optionTenors = parameters->capFloorVolExpiries(name);
                             vector<Date> optionDates(optionTenors.size());
@@ -1037,7 +1020,7 @@ ScenarioSimMarket::ScenarioSimMarket(
                                 for (Size j = 0; j < strikes.size(); ++j) {
                                     strike = isAtm ? strike : strikes[j];
                                     Real vol =
-                                        wrapper->volatility(optionDates[i], strike, wrapper->allowsExtrapolation());
+                                        wrapper->volatility(optionDates[i], strike, true);
                                     DLOG("Vol at [date, strike] pair [" << optionDates[i] << ", " << std::fixed
                                                                         << std::setprecision(4) << strike << "] is "
                                                                         << std::setprecision(12) << vol);
@@ -1090,6 +1073,9 @@ ScenarioSimMarket::ScenarioSimMarket(
                         capFloorCurves_.emplace(std::piecewise_construct,
                                                 std::forward_as_tuple(Market::defaultConfiguration, name),
                                                 std::forward_as_tuple(hCapletVol));
+                        capFloorIndexBase_.emplace(
+                            std::piecewise_construct, std::forward_as_tuple(Market::defaultConfiguration, name),
+                            std::forward_as_tuple(std::make_pair(iborIndexName, rateComputationPeriod)));
 
                         LOG("Simulation market cap/floor volatility type = " << hCapletVol->volatilityType());
                     } catch (const std::exception& e) {
@@ -1230,35 +1216,36 @@ ScenarioSimMarket::ScenarioSimMarket(
                             writeSimData(simDataTmp, absoluteSimDataTmp);
                             simDataWritten = true;
                             if (useSpreadedTermStructures_) {
-			        string smileDynamicsType;
-				boost::shared_ptr<CDSVolatilityCurveConfig> config;
-				if (curveConfigs.hasCdsVolCurveConfig(name))
-			            config = curveConfigs.cdsVolCurveConfig(name);
-				if (config && config->smileDynamics() != "") {
-				    smileDynamicsType = config->smileDynamics();
-				    LOG("Using cds smile dynamics " << smileDynamicsType << " from vol curve config " << name);
-				}
-				else {
-				    smileDynamicsType = smileDynamics.cds();
-				    string text = !config ? "vol curve config not found" : "vol curve smile dynamics is not set";
-				    LOG("Using cds smile dynamics " << smileDynamicsType << " from global config for name " << name << ", " << text);
-				}
-			        bool stickyMoney = smileDynamicsType == "StickyMoneyness" ? true : false;
+                                string smileDynamicsType;
+                                boost::shared_ptr<CDSVolatilityCurveConfig> config;
+                                if (curveConfigs.hasCdsVolCurveConfig(name))
+                                    config = curveConfigs.cdsVolCurveConfig(name);
+                                if (config && config->smileDynamics() != "") {
+                                    smileDynamicsType = config->smileDynamics();
+                                    LOG("Using cds smile dynamics " << smileDynamicsType << " from vol curve config "
+                                                                    << name);
+                                } else {
+                                    smileDynamicsType = smileDynamics.cds();
+                                    string text =
+                                        !config ? "vol curve config not found" : "vol curve smile dynamics is not set";
+                                    LOG("Using cds smile dynamics " << smileDynamicsType
+                                                                    << " from global config for name " << name << ", "
+                                                                    << text);
+                                }
+                                bool stickyMoney = smileDynamicsType == "StickyMoneyness" ? true : false;
                                 std::vector<QuantLib::Period> simTerms;
                                 std::vector<Handle<CreditCurve>> simTermCurves;
-                                if (stickyMoney) {
-                                    if (curveConfigs.hasCdsVolCurveConfig(name)) {
-                                        // get the term curves from the curve config if possible
-                                        auto cc = curveConfigs.cdsVolCurveConfig(name);
-                                        simTerms = cc->terms();
-                                        for (auto const& c : cc->termCurves())
-                                            simTermCurves.push_back(defaultCurve(parseCurveSpec(c)->curveConfigID()));
-                                    } else {
-                                        // assume the default curve names follow the naming convention volName_5Y
-                                        simTerms = wrapper->terms();
-                                        for (auto const& t : simTerms) {
-                                            simTermCurves.push_back(defaultCurve(name + "_" + ore::data::to_string(t)));
-                                        }
+                                if (curveConfigs.hasCdsVolCurveConfig(name)) {
+                                    // get the term curves from the curve config if possible
+                                    auto cc = curveConfigs.cdsVolCurveConfig(name);
+                                    simTerms = cc->terms();
+                                    for (auto const& c : cc->termCurves())
+                                        simTermCurves.push_back(defaultCurve(parseCurveSpec(c)->curveConfigID()));
+                                } else {
+                                    // assume the default curve names follow the naming convention volName_5Y
+                                    simTerms = wrapper->terms();
+                                    for (auto const& t : simTerms) {
+                                        simTermCurves.push_back(defaultCurve(name + "_" + ore::data::to_string(t)));
                                     }
                                 }
                                 cvh = Handle<CreditVolCurve>(boost::make_shared<SpreadedCreditVolCurve>(
@@ -1840,28 +1827,36 @@ ScenarioSimMarket::ScenarioSimMarket(
                 for (const auto& name : param.second.second) {
                     bool simDataWritten = false;
                     try {
-                        Handle<BaseCorrelationTermStructure<BilinearInterpolation>> wrapper =
+                        Handle<QuantExt::BaseCorrelationTermStructure> wrapper =
                             initMarket->baseCorrelation(name, configuration);
                         if (!param.second.first)
                             baseCorrelations_.insert(
-                                pair<pair<string, string>, Handle<BaseCorrelationTermStructure<BilinearInterpolation>>>(
+                                pair<pair<string, string>, Handle<QuantExt::BaseCorrelationTermStructure>>(
                                     make_pair(Market::defaultConfiguration, name), wrapper));
                         else {
                             Size nd = parameters->baseCorrelationDetachmentPoints().size();
                             Size nt = parameters->baseCorrelationTerms().size();
                             vector<vector<Handle<Quote>>> quotes(nd, vector<Handle<Quote>>(nt));
                             vector<Period> terms(nt);
+                            vector<double> detachmentPoints(nd);
                             for (Size i = 0; i < nd; ++i) {
                                 Real lossLevel = parameters->baseCorrelationDetachmentPoints()[i];
+                                detachmentPoints[i] = lossLevel;
                                 for (Size j = 0; j < nt; ++j) {
                                     Period term = parameters->baseCorrelationTerms()[j];
                                     if (i == 0)
                                         terms[j] = term;
                                     Real bc = wrapper->correlation(asof_ + term, lossLevel, true); // extrapolate
-                                    boost::shared_ptr<SimpleQuote> q(new SimpleQuote(bc));
+                                    boost::shared_ptr<SimpleQuote> q =
+                                        boost::make_shared<SimpleQuote>(useSpreadedTermStructures_ ? 0.0 : bc);
                                     simDataTmp.emplace(std::piecewise_construct,
                                                        std::forward_as_tuple(param.first, name, i * nt + j),
                                                        std::forward_as_tuple(q));
+                                    if (useSpreadedTermStructures_) {
+                                        absoluteSimDataTmp.emplace(std::piecewise_construct,
+                                                                   std::forward_as_tuple(param.first, name, i * nt + j),
+                                                                   std::forward_as_tuple(bc));
+                                    }
                                     quotes[i][j] = Handle<Quote>(q);
                                 }
                             }
@@ -1869,22 +1864,41 @@ ScenarioSimMarket::ScenarioSimMarket(
                             writeSimData(simDataTmp, absoluteSimDataTmp);
                             simDataWritten = true;
 
-                            // FIXME: Same change as in ored/market/basecorrelationcurve.cpp
-                            if (nt == 1) {
-                                terms.push_back(terms[0] + 1 * Days); // arbitrary, but larger than the first term
+                            //
+                            if (nt == 1) {                           
+                                terms.push_back(terms[0] + 1 * terms[0].units()); // arbitrary, but larger than the first term
                                 for (Size i = 0; i < nd; ++i)
                                     quotes[i].push_back(quotes[i][0]);
                             }
-                            DayCounter dc = wrapper->dayCounter();
-                            boost::shared_ptr<BilinearBaseCorrelationTermStructure> bcp =
-                                boost::make_shared<BilinearBaseCorrelationTermStructure>(
-                                    wrapper->settlementDays(), wrapper->calendar(), wrapper->businessDayConvention(),
-                                    terms, parameters->baseCorrelationDetachmentPoints(), quotes, dc);
 
-                            bcp->enableExtrapolation(wrapper->allowsExtrapolation());
-                            Handle<BilinearBaseCorrelationTermStructure> bch(bcp);
+                            if (nd == 1) {
+                                quotes.push_back(vector<Handle<Quote>>(terms.size()));
+                                for (Size j = 0; j < terms.size(); ++j)
+                                    quotes[1][j] = quotes[0][j];
+
+                                if (detachmentPoints[0] < 1.0 && !QuantLib::close_enough(detachmentPoints[0], 1.0)) {
+                                    detachmentPoints.push_back(1.0);
+                                } else {
+                                    detachmentPoints.insert(detachmentPoints.begin(), 0.01); // arbitrary, but larger than then 0 and less than 1.0
+                                }
+                            }
+                            
+                            boost::shared_ptr<QuantExt::BaseCorrelationTermStructure> bcp;
+                            if (useSpreadedTermStructures_) {
+                                bcp = boost::make_shared<QuantExt::SpreadedBaseCorrelationCurve>(
+                                    wrapper, terms, detachmentPoints, quotes);
+                                bcp->enableExtrapolation(wrapper->allowsExtrapolation());
+                            } else {
+                                DayCounter dc = wrapper->dayCounter();
+                                bcp = boost::make_shared<InterpolatedBaseCorrelationTermStructure<Bilinear>>(
+                                    wrapper->settlementDays(), wrapper->calendar(), wrapper->businessDayConvention(),
+                                    terms, detachmentPoints, quotes, dc);
+
+                                bcp->enableExtrapolation(wrapper->allowsExtrapolation());
+                            }
+                            Handle<QuantExt::BaseCorrelationTermStructure> bch(bcp);
                             baseCorrelations_.insert(
-                                pair<pair<string, string>, Handle<BaseCorrelationTermStructure<BilinearInterpolation>>>(
+                                pair<pair<string, string>, Handle<QuantExt::BaseCorrelationTermStructure>>(
                                     make_pair(Market::defaultConfiguration, name), bch));
                         }
                         DLOG("Base correlations built for " << name);
@@ -2005,14 +2019,14 @@ ScenarioSimMarket::ScenarioSimMarket(
                     bool simDataWritten = false;
                     try {
                         LOG("building " << name << " zero inflation cap/floor volatility curve...");
-                        Handle<CPIVolatilitySurface> wrapper =
+                        Handle<QuantLib::CPIVolatilitySurface> wrapper =
                             initMarket->cpiInflationCapFloorVolatilitySurface(name, configuration);
                         Handle<ZeroInflationIndex> zeroInflationIndex =
                             initMarket->zeroInflationIndex(name, configuration);
                         // LOG("Initial market zero inflation cap/floor volatility type = " <<
                         // wrapper->volatilityType());
 
-                        Handle<CPIVolatilitySurface> hCpiVol;
+                        Handle<QuantLib::CPIVolatilitySurface> hCpiVol;
 
                         // Check if the risk factor is simulated before adding it
                         if (param.second.first) {
@@ -2048,10 +2062,11 @@ ScenarioSimMarket::ScenarioSimMarket(
                             simDataWritten = true;
 
                             if (useSpreadedTermStructures_) {
-                                hCpiVol = Handle<CPIVolatilitySurface>(boost::make_shared<SpreadedCPIVolatilitySurface>(
+                                hCpiVol = Handle<QuantLib::CPIVolatilitySurface>(
+                                    boost::make_shared<SpreadedCPIVolatilitySurface>(
                                     wrapper, optionDates, strikes, quotes));
                             } else {
-                                hCpiVol = Handle<CPIVolatilitySurface>(
+                                hCpiVol = Handle<QuantLib::CPIVolatilitySurface>(
                                     boost::make_shared<InterpolatedCPIVolatilitySurface<Bilinear>>(
                                         optionTenors, strikes, quotes, zeroInflationIndex.currentLink(),
                                         wrapper->settlementDays(), wrapper->calendar(),

@@ -165,13 +165,14 @@ void Portfolio::removeMatured(const Date& asof) {
     }
 }
 
-void Portfolio::build(const boost::shared_ptr<EngineFactory>& engineFactory, const std::string& context) {
+void Portfolio::build(const boost::shared_ptr<EngineFactory>& engineFactory, const std::string& context,
+                      const bool emitStructuredError) {
     LOG("Building Portfolio of size " << trades_.size() << " for context = '" << context << "'");
     auto trade = trades_.begin();
     Size initialSize = trades_.size();
     Size failedTrades = 0;
     while (trade != trades_.end()) {
-        auto [ft, success] = buildTrade(*trade, engineFactory, context, buildFailedTrades());
+        auto [ft, success] = buildTrade(*trade, engineFactory, context, buildFailedTrades(), emitStructuredError);
         if(success) {
 	    ++trade;
         } else if (ft) {
@@ -287,9 +288,13 @@ Portfolio::underlyingIndices(const boost::shared_ptr<ReferenceDataManager>& refe
     map<AssetClass, std::set<std::string>> result;
 
     for (const auto& t : trades_) {
-        auto underlyings = t->underlyingIndices(referenceDataManager);
-        for (const auto& kv : underlyings) {
-            result[kv.first].insert(kv.second.begin(), kv.second.end());
+        try {
+            auto underlyings = t->underlyingIndices(referenceDataManager);
+            for (const auto& kv : underlyings) {
+                result[kv.first].insert(kv.second.begin(), kv.second.end());
+            }
+        } catch (const std::exception& e) {
+            ALOG(StructuredTradeErrorMessage(t->id(), t->tradeType(), "Error retrieving underlying indices", e.what()));
         }
     }
     underlyingIndicesCache_ = result;
@@ -310,7 +315,8 @@ Portfolio::underlyingIndices(AssetClass assetClass,
 
 std::pair<boost::shared_ptr<Trade>, bool> buildTrade(boost::shared_ptr<Trade>& trade,
                                                      const boost::shared_ptr<EngineFactory>& engineFactory,
-                                                     const std::string& context, const bool buildFailedTrades) {
+                                                     const std::string& context, const bool buildFailedTrades,
+                                                     const bool emitStructuredError) {
     try {
         trade->reset();
         trade->build(engineFactory);
@@ -318,7 +324,11 @@ std::pair<boost::shared_ptr<Trade>, bool> buildTrade(boost::shared_ptr<Trade>& t
         TLOGGERSTREAM(trade->requiredFixings());
         return std::make_pair(nullptr, true);
     } catch (std::exception& e) {
-        ALOG(StructuredTradeErrorMessage(trade, "Error building trade for context '" + context + "'", e.what()));
+        if(emitStructuredError) {
+            ALOG(StructuredTradeErrorMessage(trade, "Error building trade for context '" + context + "'", e.what()));
+        } else {
+            ALOG("Error building trade '" << trade->id() << "' for context '" + context + "': " + e.what());
+        }
         if (buildFailedTrades) {
             boost::shared_ptr<FailedTrade> failed = boost::make_shared<FailedTrade>();
             failed->id() = trade->id();

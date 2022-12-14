@@ -29,7 +29,7 @@ void VanillaOptionTrade::build(const boost::shared_ptr<ore::data::EngineFactory>
 
     // If underlying currency is empty, then set to payment currency by default.
     // If non-empty, then check if the currencies are different for a Quanto payoff
-    Currency underlyingCurrency = underlyingCurrency_.empty() ? ccy : parseCurrencyWithMinors(underlyingCurrency_);
+    Currency underlyingCurrency = underlyingCurrency_.empty() ? ccy : underlyingCurrency_;
     bool sameCcy = underlyingCurrency == ccy;
     
     if (strike_.currency().empty())
@@ -229,7 +229,8 @@ void VanillaOptionTrade::build(const boost::shared_ptr<ore::data::EngineFactory>
     // Notional - we really need todays spot to get the correct notional.
     // But rather than having it move around we use strike * quantity
     notional_ = strike_.value() * quantity_;
-    notionalCurrency_ = strike_.currency();
+    // the following is correct for vanilla (sameCcy = true) and quanto (sameCcy = false)
+    notionalCurrency_ = ccy.code();
 }
 
 void VanillaOptionTrade::fromXML(XMLNode* node) { Trade::fromXML(node); }

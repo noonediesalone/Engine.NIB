@@ -42,7 +42,8 @@
  class TestMarket : public MarketImpl {
  public:
      TestMarket(const Real spot, const Date& expiry, const Rate domRate, const Rate forRate,
-                const Volatility flatVolatility) {
+                const Volatility flatVolatility)
+         : MarketImpl(false) {
          // Reference date and common day counter
          asof_ = Date(01, Feb, 2021);
          DayCounter dayCounter = Actual360();
@@ -54,11 +55,9 @@
          yieldCurves_[make_tuple(Market::defaultConfiguration, YieldCurveType::Discount, "JPY")] = foreign;
 
          // Add fx spot
-         fxIndices_[Market::defaultConfiguration].addIndex( "JPYUSD", 
-             Handle<QuantExt::FxIndex>(boost::make_shared<QuantExt::FxIndex>(
-             asof_, "JPYUSD", 0, parseCurrency("JPY"), parseCurrency("USD"),
-             parseCalendar("JPY,USD"), Handle<Quote>(boost::make_shared<SimpleQuote>(spot)), discountCurve("JPY"),
-             discountCurve("USD"), false)));
+	 std::map<std::string, Handle<Quote>> quotes;
+	 quotes["JPYUSD"] = Handle<Quote>(boost::make_shared<SimpleQuote>(spot));
+	 fx_ = boost::make_shared<FXTriangulation>(quotes);
 
          // Add USDJPY volatilities
          Handle<BlackVolTermStructure> volatility(
