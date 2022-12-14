@@ -101,7 +101,7 @@ protected:
 class FxOptionWithBarrier : public FxSingleAssetDerivative, public BarrierOption {
 public:
     //! Default constructor
-    FxOptionWithBarrier(const std::string& tradeType) : ore::data::Trade(tradeType), FxSingleAssetDerivative(tradeType), 
+    FxOptionWithBarrier(const std::string& tradeType) : FxSingleAssetDerivative(tradeType), 
         boughtAmount_(0.0), soldAmount_(0.0) {}
 
     //! Constructor
@@ -109,8 +109,7 @@ public:
         BarrierData barrier, QuantLib::Date startDate, std::string calendar, std::string boughtCurrency,
         QuantLib::Real boughtAmount, std::string soldCurrency, QuantLib::Real soldAmount, 
         std::string fxIndex = std::string())
-        : ore::data::Trade(tradeType, env), 
-          FxSingleAssetDerivative(tradeType, env, boughtCurrency, soldCurrency),
+        : FxSingleAssetDerivative(tradeType, env, boughtCurrency, soldCurrency),
           BarrierOption(option, barrier, startDate, calendar), 
           fxIndexStr_(fxIndex), boughtAmount_(boughtAmount), soldAmount_(soldAmount) {}
 
@@ -150,13 +149,13 @@ class EquityOptionWithBarrier : public EquitySingleAssetDerivative, public Barri
 public:
     //! Default constructor
     EquityOptionWithBarrier(const std::string& tradeType)
-        : ore::data::Trade(tradeType), EquitySingleAssetDerivative(tradeType), quantity_(0.0) {}
+        : EquitySingleAssetDerivative(tradeType), quantity_(0.0) {}
 
     //! Constructor
     EquityOptionWithBarrier(const std::string& tradeType, ore::data::Envelope& env, ore::data::OptionData option,
         BarrierData barrier, QuantLib::Date startDate, std::string calendar, const EquityUnderlying& equity,
         QuantLib::Currency currency, QuantLib::Real quantity, TradeStrike strike)
-        : ore::data::Trade(tradeType, env), EquitySingleAssetDerivative(tradeType, env, equity),
+        : EquitySingleAssetDerivative(tradeType, env, equity),
           BarrierOption(option, barrier, startDate, calendar), currency_(currency), quantity_(quantity),
            tradeStrike_(strike) {}
 
