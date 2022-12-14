@@ -30,18 +30,18 @@ namespace data {
 //! Base class for all Equity Derivaties
 class EquityDerivative : virtual public ore::data::Trade {
 protected:
-    EquityDerivative(const std::string& tradeType) : ore::data::Trade(tradeType) {}
+    EquityDerivative(const std::string& tradeType) {}
 
-    EquityDerivative(const std::string& tradeType, ore::data::Envelope& env) : ore::data::Trade(tradeType, env) {}
+    EquityDerivative(const std::string& tradeType, ore::data::Envelope& env) {}
 };
 
 //! Base class for all single asset Equity Derivaties
 class EquitySingleAssetDerivative : public EquityDerivative {
 protected:
-    EquitySingleAssetDerivative(const std::string& tradeType) : ore::data::Trade(tradeType), EquityDerivative(tradeType) {}
+    EquitySingleAssetDerivative(const std::string& tradeType) : EquityDerivative(tradeType) {}
 
     EquitySingleAssetDerivative(const std::string& tradeType, ore::data::Envelope& env, const EquityUnderlying& equityUnderlying)
-        : ore::data::Trade(tradeType, env), EquityDerivative(tradeType, env), equityUnderlying_(equityUnderlying) {}
+        : EquityDerivative(tradeType, env), equityUnderlying_(equityUnderlying) {}
 
     // Protected members
     EquityUnderlying equityUnderlying_;

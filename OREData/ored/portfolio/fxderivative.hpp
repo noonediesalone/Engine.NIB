@@ -29,19 +29,19 @@ namespace data {
 //! Base class for all FX Derivaties
 class FxDerivative : virtual public ore::data::Trade {
 protected:
-    FxDerivative(const std::string& tradeType) : ore::data::Trade(tradeType) {}
+    FxDerivative(const std::string& tradeType) {}
 
-    FxDerivative(const std::string& tradeType, ore::data::Envelope& env) : ore::data::Trade(tradeType, env) {}
+    FxDerivative(const std::string& tradeType, ore::data::Envelope& env) {}
 };
 
 //! Base class for all single asset FX Derivaties
 class FxSingleAssetDerivative : public FxDerivative {
 protected:
-    FxSingleAssetDerivative(const std::string& tradeType) : ore::data::Trade(tradeType), FxDerivative(tradeType) {}
+    FxSingleAssetDerivative(const std::string& tradeType) : FxDerivative(tradeType) {}
 
     FxSingleAssetDerivative(const std::string& tradeType, ore::data::Envelope& env, const std::string& boughtCurrency,
                             const std::string& soldCurrency)
-        : ore::data::Trade(tradeType, env), FxDerivative(tradeType, env), boughtCurrency_(boughtCurrency),
+        : FxDerivative(tradeType, env), boughtCurrency_(boughtCurrency),
           soldCurrency_(soldCurrency) {}
 
     // Protected members
