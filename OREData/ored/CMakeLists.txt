@@ -114,7 +114,8 @@ portfolio/builders/currencyswap.cpp
 portfolio/builders/durationadjustedcms.cpp
 portfolio/builders/fxoption.cpp
 portfolio/builders/multilegoption.cpp
-portfolio/builders/prdc.cppportfolio/builders/swap.cpp
+portfolio/builders/prdc.cpp
+portfolio/builders/swap.cpp
 portfolio/builders/swaption.cpp
 portfolio/builders/yoycapfloor.cpp
 portfolio/capfloor.cpp

@@ -98,7 +98,8 @@ void NettingSetManager::fromXML(XMLNode* node) {
             boost::shared_ptr<NettingSetDefinition> nettingSet(new NettingSetDefinition(child));
             add(nettingSet);
         } catch (std::exception& ex) {
-                                                       "Netting set definnition failed to parse", ex.what()));
+            ALOG(StructuredConfigurationWarningMessage(
+                "Netting set manager", "", "Netting set definnition failed to parse: " + string(ex.what())));
         }
     }
 }
