@@ -87,12 +87,6 @@ boost::shared_ptr<NettingSetDefinition> NettingSetManager::get(const string& id)
         return found->second;
     else
         QL_FAIL("NettingSetDefinition not found in manager: " + id);
-    auto found =
-        std::find_if(data_.begin(), data_.end(), [&](const auto& details) { return details.first.nettingSetId() == id; });
-    if (found != data_.end())
-        return found->second;
-    else
-        QL_FAIL("NettingSetDefinition not found in manager: " + id);
 }
 
 void NettingSetManager::fromXML(XMLNode* node) {

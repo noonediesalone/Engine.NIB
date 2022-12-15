@@ -124,7 +124,7 @@ NettingSetDefinition::NettingSetDefinition(const NettingSetDetails& nettingSetDe
                                            const Real& collatSpreadRcv, const vector<string>& eligCollatCcys,
                                            bool applyInitialMargin, const string& initialMarginType,
                                            const bool calculateIMAmount, const bool calculateVMAmount)
-    : nettingSetDetails_(nettingSetDetails), activeCsaFlag_(true) {
+    : nettingSetDetails_(nettingSetDetails), activeCsaFlag_(true), nettingSetId_(nettingSetDetails.nettingSetId()) {
 
     csa_ = boost::make_shared<CSA>(
         parseCsaType(bilateral), csaCurrency, index, thresholdPay, thresholdRcv, mtaPay, mtaRcv, iaHeld, iaType,
