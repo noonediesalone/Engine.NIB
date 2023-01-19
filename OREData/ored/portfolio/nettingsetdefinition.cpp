@@ -111,7 +111,7 @@ NettingSetDefinition::NettingSetDefinition(XMLNode* node) {
 }
 
 NettingSetDefinition::NettingSetDefinition(const NettingSetDetails& nettingSetDetails)
-    : nettingSetDetails_(nettingSetDetails), activeCsaFlag_(false) {
+    : nettingSetDetails_(nettingSetDetails), activeCsaFlag_(false), nettingSetId_(nettingSetDetails.nettingSetId()) {
     validate();
     DLOG(nettingSetDetails_ << ": uncollateralised NettingSetDefinition built.");
 }
