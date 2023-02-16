@@ -17,12 +17,12 @@ namespace QuantExt {
 
 PrdcFixedCoupon::PrdcFixedCoupon(boost::shared_ptr<FxIndex> fxIndex,
                                  const boost::shared_ptr<FixedRateCoupon>& underlying, const Date& fxFixingDate,
-                                 Real foreignAmount, Real domesticAmount, Real denominationAmount, Rate cap, Rate floor)
+                                 Real foreignAmount, Real domesticAmount, Rate cap, Rate floor)
     : FixedRateCoupon(underlying->date(), foreignAmount, underlying->rate(), underlying->dayCounter(),
                       underlying->accrualStartDate(), underlying->accrualEndDate(), underlying->referencePeriodStart(),
                       underlying->referencePeriodEnd(), underlying->exCouponDate()),
       FXLinked(fxFixingDate, foreignAmount, fxIndex), underlying_(underlying), domesticAmount_(domesticAmount),
-      denominationAmount_(denominationAmount), cap_(cap), floor_(floor) {
+      cap_(cap), floor_(floor) {
     registerWith(FXLinked::fxIndex());
     registerWith(underlying_);
 }
@@ -40,7 +40,7 @@ Rate PrdcFixedCoupon::couponRate() const {
 }
 
 Real PrdcFixedCoupon::amount() const {
-    return couponRate() * (nominal() / denominationAmount()) *
+    return couponRate() * nominal() *
            (interestRate().compoundFactor(accrualStartDate(), accrualEndDate(), referencePeriodStart(),
                                           referencePeriodEnd()) -
             1.0);
@@ -84,7 +84,7 @@ boost::shared_ptr<FXLinked> PrdcFixedCoupon::clone(boost::shared_ptr<FxIndex> fx
 
 PrdcLeg::PrdcLeg(Schedule schedule, const boost::shared_ptr<QuantExt::FxIndex>& fxIndex)
     : schedule_(std::move(schedule)), fxIndex_(fxIndex), fixingAdjustment_(Following), simulate_(false),
-      inArrearsFixing_(true), denominationAmount_(Null<Real>()) {}
+      inArrearsFixing_(true) {}
 
 PrdcLeg& PrdcLeg::withNotionals(Real notional) {
     notionals_ = std::vector<Real>(1, notional);
@@ -118,11 +118,6 @@ PrdcLeg& PrdcLeg::withFixingDays(Natural fixingDays) {
 
 PrdcLeg& PrdcLeg::withInArrears(bool inArrearsFixing) {
     inArrearsFixing_ = inArrearsFixing;
-    return *this;
-}
-
-PrdcLeg& PrdcLeg::withDenominationAmount(Real denominationAmount) {
-    denominationAmount_ = denominationAmount;
     return *this;
 }
 
@@ -191,7 +186,7 @@ PrdcLeg::operator Leg() const {
             auto fixedCoupon = boost::make_shared<FixedRateCoupon>(
                 paymentDate, notional, fixed_rate, paymentDayCounter_, startDate, endDate, Date(), Date());
             boost::shared_ptr<PrdcFixedCoupon> coupon = boost::make_shared<PrdcFixedCoupon>(
-                fxIndex_, fixedCoupon, fixingDate, foreignRate, domesticRate, denominationAmount_, cap, floor);
+                fxIndex_, fixedCoupon, fixingDate, foreignRate, domesticRate, cap, floor);
             leg.push_back(coupon);
         } else {
             QL_ASSERT(false, "PRDC with simulation not implemented");

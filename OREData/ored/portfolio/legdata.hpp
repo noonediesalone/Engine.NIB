@@ -770,20 +770,18 @@ private:
 class PRDCLegData : public LegAdditionalData {
 public:
     //! Default constructor
-    PRDCLegData() : LegAdditionalData("PRDC"), fixingDays_(Null<Size>()), denominationAmount_(Null<Real>()) {}
+    PRDCLegData() : LegAdditionalData("PRDC"), fixingDays_(Null<Size>()) {}
     //! Constructor
-    PRDCLegData(const string& fxIndex, const vector<double>& domesticRates,
-                const vector<string>& domesticDates,
-                const vector<double>& foreignRates,
-                const vector<string>& foreignDates, const string& fixingCalendar = string(), const string& fixingConvention = string(),
-                Size fixingDays = Null<Size>(), bool isInArrears = false, Real denominationAmount = Null<Real>(),
-                const vector<double>& caps = vector<double>(), const vector<string>& capDates = vector<string>(),
-                const vector<double>& floors = vector<double>(), const vector<string>& floorDates = vector<string>())
+    PRDCLegData(const string& fxIndex, const vector<double>& domesticRates, const vector<string>& domesticDates,
+                const vector<double>& foreignRates, const vector<string>& foreignDates,
+                const string& fixingCalendar = string(), const string& fixingConvention = string(),
+                Size fixingDays = Null<Size>(), bool isInArrears = false, const vector<double>& caps = vector<double>(),
+                const vector<string>& capDates = vector<string>(), const vector<double>& floors = vector<double>(),
+                const vector<string>& floorDates = vector<string>())
         : LegAdditionalData("PRDC"), fxIndex_(fxIndex), domesticRates_(domesticRates), domesticDates_(domesticDates),
           foreignRates_(foreignRates), foreignDates_(foreignDates), fixingCalendar_(fixingCalendar),
-          fixingConvention_(fixingConvention), fixingDays_(fixingDays), isInArrears_(isInArrears),
-          denominationAmount_(denominationAmount), caps_(caps), capDates_(capDates), floors_(floors),
-          floorDates_(floorDates) {}
+          fixingConvention_(fixingConvention), fixingDays_(fixingDays), isInArrears_(isInArrears), caps_(caps),
+          capDates_(capDates), floors_(floors), floorDates_(floorDates) {}
 
     //! \name Inspectors
     //@{
@@ -793,10 +791,9 @@ public:
     const vector<double>& foreignRates() const { return foreignRates_; }
     const vector<string>& foreignDates() const { return foreignDates_; }
     const std::string& fixingCalendar() const { return fixingCalendar_; }
-    const std::string& fixingConvention() const { return fixingConvention_; }    
+    const std::string& fixingConvention() const { return fixingConvention_; }
     Size fixingDays() const { return fixingDays_; }
-    bool isInArrears() const { return isInArrears_; }    
-    Real denominationAmount() const { return denominationAmount_; }
+    bool isInArrears() const { return isInArrears_; }
     const vector<double>& caps() const { return caps_; }
     const vector<string>& capDates() const { return capDates_; }
     const vector<double>& floors() const { return floors_; }
@@ -815,10 +812,9 @@ private:
     vector<double> foreignRates_;
     vector<string> foreignDates_;
     string fixingCalendar_;
-    string fixingConvention_;    
+    string fixingConvention_;
     Size fixingDays_;
-    bool isInArrears_;    
-    Real denominationAmount_;
+    bool isInArrears_;
     vector<double> caps_;
     vector<string> capDates_;
     vector<double> floors_;
