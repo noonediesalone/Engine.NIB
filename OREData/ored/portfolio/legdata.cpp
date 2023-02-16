@@ -585,11 +585,9 @@ XMLNode* PRDCLegData::toXML(XMLDocument& doc) {
     if (!fixingCalendar_.empty())
         XMLUtils::addChild(doc, node, "FixingCalendar", fixingCalendar_);
     if (!fixingConvention_.empty())
-        XMLUtils::addChild(doc, node, "FixingConvention", fixingConvention_);    
+        XMLUtils::addChild(doc, node, "FixingConvention", fixingConvention_);
     if (fixingDays_ != Null<Size>())
         XMLUtils::addChild(doc, node, "FixingDays", static_cast<int>(fixingDays_));
-    if (denominationAmount_ != Null<Real>())
-        XMLUtils::addChild(doc, node, "DenominationAmount", static_cast<double>(denominationAmount_));
     XMLUtils::addChild(doc, node, "IsInArrears", isInArrears_);
     XMLUtils::addChildrenWithOptionalAttributes(doc, node, "DomesticRates", "DomesticRate", domesticRates_, "startDate",
                                                 domesticDates_);
@@ -611,7 +609,7 @@ void PRDCLegData::fromXML(XMLNode* node) {
 
     // These are all optional
     fixingCalendar_ = XMLUtils::getChildValue(node, "FixingCalendar", false);
-    fixingConvention_ = XMLUtils::getChildValue(node, "FixingConvention", false);    
+    fixingConvention_ = XMLUtils::getChildValue(node, "FixingConvention", false);
     if (auto n = XMLUtils::getChildNode(node, "FixingDays"))
         fixingDays_ = parseInteger(XMLUtils::getNodeValue(n));
     else
@@ -620,11 +618,7 @@ void PRDCLegData::fromXML(XMLNode* node) {
         isInArrears_ = parseBool(XMLUtils::getNodeValue(n));
     else
         isInArrears_ = true;
-    if (auto n = XMLUtils::getChildNode(node, "DenominationAmount"))
-        denominationAmount_ = parseReal(XMLUtils::getNodeValue(n));
-    else
-        denominationAmount_ = Null<Real>();
-    
+
     caps_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "Caps", "Cap", "startDate", capDates_, &parseReal);
     floors_ =
         XMLUtils::getChildrenValuesWithAttributes<Real>(node, "Floors", "Floor", "startDate", floorDates_, &parseReal);
@@ -2192,9 +2186,6 @@ Leg makePRDCLeg(const LegData& data, const boost::shared_ptr<QuantExt::FxIndex>&
 
     if (auto fixingDays = prdcData->fixingDays(); fixingDays != Null<Size>())
         prdcLeg.withFixingDays(fixingDays);
-
-    if (auto denomAmount = prdcData->denominationAmount(); denomAmount != Null<Real>())
-        prdcLeg.withDenominationAmount(denomAmount);
 
     if (prdcData->caps().size() > 0)
         prdcLeg.withCaps(buildScheduledVector(prdcData->caps(), prdcData->capDates(), schedule));
