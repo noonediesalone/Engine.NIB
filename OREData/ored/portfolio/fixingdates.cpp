@@ -533,7 +533,8 @@ void FixingDateGetter::visit(CommodityIndexedAverageCashFlow& c) {
 }
 
 void FixingDateGetter::visit(PrdcFixedCoupon& c) {
-    requiredFixings_.addFixingDate(c.fxFixingDate(), c.fxIndex()->name(), c.date());
+    requiredFixings_.addFixingDate(c.fxFixingDate(), IndexNameTranslator::instance().oreName(c.fxIndex()->name()),
+                                   c.date());
 }
 
 void addToRequiredFixings(const QuantLib::Leg& leg, const boost::shared_ptr<FixingDateGetter>& fixingDateGetter) {
