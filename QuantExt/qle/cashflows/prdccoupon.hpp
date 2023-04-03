@@ -114,7 +114,7 @@ class CAMPricer : public FloatingRateCouponPricer {
 public:
     explicit CAMPricer(boost::shared_ptr<QuantExt::CrossAssetModel> model,
                        boost::shared_ptr<QuantExt::MultiPathGeneratorBase> pathGen)
-        : pathGen_(pathGen), model_(model) {}
+        : model_(model), pathGen_(pathGen) {}
 
     void initialize(const FloatingRateCoupon& coupon) override;
     Real swapletPrice() const override;

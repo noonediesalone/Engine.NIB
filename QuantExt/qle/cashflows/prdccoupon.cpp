@@ -83,7 +83,7 @@ boost::shared_ptr<FXLinked> PrdcFixedCoupon::clone(boost::shared_ptr<FxIndex> fx
 }
 
 PrdcLeg::PrdcLeg(Schedule schedule, const boost::shared_ptr<QuantExt::FxIndex>& fxIndex)
-    : schedule_(std::move(schedule)), fxIndex_(fxIndex), fixingAdjustment_(Following), simulate_(false),
+    : simulate_(false), schedule_(std::move(schedule)), fxIndex_(fxIndex), fixingAdjustment_(Following), 
       inArrearsFixing_(true) {}
 
 PrdcLeg& PrdcLeg::withNotionals(Real notional) {

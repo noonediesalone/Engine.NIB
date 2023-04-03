@@ -1,6 +1,19 @@
 /*
  Copyright (C) 2019 Quaternion Risk Management Ltd
  All rights reserved.
+
+ This file is part of ORE, a free-software/open-source library
+ for transparent pricing and risk analysis - http://opensourcerisk.org
+
+ ORE is free software: you can redistribute it and/or modify it
+ under the terms of the Modified BSD License.  You should have received a
+ copy of the license along with this program.
+ The license is also available online at <http://opensourcerisk.org>
+
+ This program is distributed on the basis that it will form a useful
+ contribution to risk analytics and model standardisation, but WITHOUT
+ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ FITNESS FOR A PARTICULAR PURPOSE. See the license for more details.
 */
 
 /*! \file qle/cashflows/commodityindexedcashflow.hpp
@@ -32,7 +45,8 @@ public:
                              QuantLib::Real spread = 0.0, QuantLib::Real gearing = 1.0, bool useFuturePrice = false,
                              const Date& contractDate = Date(),
                              const ext::shared_ptr<FutureExpiryCalculator>& calc = nullptr,
-                             QuantLib::Natural dailyExpiryOffset = QuantLib::Null<QuantLib::Natural>());
+                             QuantLib::Natural dailyExpiryOffset = QuantLib::Null<QuantLib::Natural>(),
+                             const ext::shared_ptr<FxIndex>& fxIndex = nullptr);
 
     /*! Constructor taking a period \p startDate, \p endDate and some conventions. The pricing date and payment date
         are derived from the start date and end date using the conventions.
@@ -48,7 +62,8 @@ public:
                              const ext::shared_ptr<FutureExpiryCalculator>& calc = nullptr,
                              const QuantLib::Date& paymentDateOverride = Date(),
                              const QuantLib::Date& pricingDateOverride = Date(),
-                             QuantLib::Natural dailyExpiryOffset = QuantLib::Null<QuantLib::Natural>());
+                             QuantLib::Natural dailyExpiryOffset = QuantLib::Null<QuantLib::Natural>(),
+                             const ext::shared_ptr<FxIndex>& fxIndex = nullptr);
 
     //! \name Inspectors
     //@{
@@ -56,12 +71,15 @@ public:
     const QuantLib::Date& pricingDate() const { return pricingDate_; }
     bool useFutureExpiryDate() const { return useFutureExpiryDate_; }
     QuantLib::Natural futureMonthOffset() const { return futureMonthOffset_; }
-    QuantLib::Real periodQuantity() const { return periodQuantity_; }
+    QuantLib::Real periodQuantity() const override { return periodQuantity_; }
     QuantLib::Natural dailyExpiryOffset() const { return dailyExpiryOffset_; }
 
     //@}
     //! \name CommodityCashFlow interface
     //@{
+    const std::map<QuantLib::Date, ext::shared_ptr<CommodityIndex>>& indices() const override { return indices_; }
+    
+  
     QuantLib::Date lastPricingDate() const override { return pricingDate(); }
     //@}
     
@@ -80,21 +98,19 @@ public:
     void accept(QuantLib::AcyclicVisitor& v) override;
     //@}
 
-    //! \name Observer interface
-    //@{
-    void update() override;
-    //@}
-
     //! Allow the full calculation period quantity to be updated.
     void setPeriodQuantity(QuantLib::Real periodQuantity);
 
 private:
+    void performCalculations() const override;
+
     QuantLib::Date pricingDate_;
     QuantLib::Date paymentDate_;
     bool useFutureExpiryDate_;
     QuantLib::Natural futureMonthOffset_;
     QuantLib::Real periodQuantity_;
     QuantLib::Natural dailyExpiryOffset_;
+    std::map<QuantLib::Date, ext::shared_ptr<CommodityIndex>> indices_;
 
     //! Shared initialisation
     void init(const ext::shared_ptr<FutureExpiryCalculator>& calc,
@@ -132,6 +148,7 @@ public:
     CommodityIndexedLeg& withPricingDates(const std::vector<QuantLib::Date>& pricingDates);
     CommodityIndexedLeg& withPaymentDates(const std::vector<QuantLib::Date>& paymentDates);
     CommodityIndexedLeg& withDailyExpiryOffset(QuantLib::Natural dailyExpiryOffset);
+    CommodityIndexedLeg& withFxIndex(const ext::shared_ptr<FxIndex>& fxIndex);
 
     operator Leg() const;
 
@@ -156,6 +173,7 @@ private:
     std::vector<QuantLib::Date> pricingDates_;
     std::vector<QuantLib::Date> paymentDates_;
     QuantLib::Natural dailyExpiryOffset_;
+    ext::shared_ptr<FxIndex> fxIndex_;
 };
 
 } // namespace QuantExt

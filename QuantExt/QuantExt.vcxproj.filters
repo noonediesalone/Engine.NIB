@@ -1405,18 +1405,10 @@
     <ClInclude Include="qle\termstructures\inflation\cpipricevolatilitysurface.hpp">
       <Filter>termstructures\inflation</Filter>
     </ClInclude>
-    <ClInclude Include="qle\indexes\ibor\brldi.hpp">
-      <Filter>indexes\ibor</Filter>
+    <ClInclude Include="qle\pricingengines\analyticdigitalamericanengine.hpp">
+      <Filter>pricingengines</Filter>
     </ClInclude>
-    <ClInclude Include="qle\indexes\ibor\govar.hpp">
-      <Filter>indexes\ibor</Filter>
-    </ClInclude>
-    <ClInclude Include="qle\indexes\ibor\reibor.hpp">
-      <Filter>indexes\ibor</Filter>
-    </ClInclude>
-    <ClInclude Include="qle\cashflows\prdccoupon.hpp">
-      <Filter>cashflows</Filter>
-    </ClInclude>  </ItemGroup>
+  </ItemGroup>
   <ItemGroup>
     <Filter Include="cashflows">
       <UniqueIdentifier>{ac57ee4f-9a17-4951-81ac-3e12860a9758}</UniqueIdentifier>
@@ -2353,9 +2345,6 @@
     <ClCompile Include="qle\pricingengines\analyticdoublebarrierbinaryengine.cpp">
       <Filter>pricingengines</Filter>
     </ClCompile>
-    <ClCompile Include="qle\pricingengines\analyticdigitalamericanengine.hpp">
-      <Filter>pricingengines</Filter>
-    </ClCompile>
     <ClCompile Include="qle\pricingengines\analyticeuropeanengine.cpp">
       <Filter>pricingengines</Filter>
     </ClCompile>
@@ -2422,7 +2411,8 @@
     <ClCompile Include="qle\pricingengines\mcmultilegoptionengine.cpp">
       <Filter>pricingengines</Filter>
     </ClCompile>
-    <ClCompile Include="qle\cashflows\prdccoupon.cpp">
-      <Filter>cashflows</Filter>
-    </ClCompile>  </ItemGroup>
+    <ClCompile Include="qle\processes\irhwstateprocess.cpp">
+      <Filter>processes</Filter>
+    </ClCompile>
+  </ItemGroup>
 </Project>
