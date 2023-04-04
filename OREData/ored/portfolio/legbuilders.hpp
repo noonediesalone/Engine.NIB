@@ -135,7 +135,8 @@ public:
     PRDCLegBuilder() : LegBuilder("PRDC") {}
     Leg buildLeg(const LegData& data, const boost::shared_ptr<EngineFactory>& engineFactory,
                  RequiredFixings& requiredFixings, const string& configuration,
-                 const QuantLib::Date& openEndDateReplacement = Null<Date>()) const override;
+                 const QuantLib::Date& openEndDateReplacement = Null<Date>(),
+                 const bool useXbsCurves = false) const override;
 };
 
 class EquityLegBuilder : public LegBuilder {

@@ -798,8 +798,6 @@ private:
     vector<string> capDates_;
     vector<double> floors_;
     vector<string> floorDates_;
-
-    static LegDataRegister<PRDCLegData> reg_;
 };
 
 //! Serializable Fixed Leg Data

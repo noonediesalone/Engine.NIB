@@ -236,7 +236,7 @@ Leg DigitalCMSSpreadLegBuilder::buildLeg(const LegData& data, const boost::share
 
 Leg PRDCLegBuilder::buildLeg(const LegData& data, const boost::shared_ptr<EngineFactory>& engineFactory,
                              RequiredFixings& requiredFixings, const string& configuration,
-                             const QuantLib::Date& openEndDateReplacement) const {
+                             const QuantLib::Date& openEndDateReplacement, const bool useXbsCurves) const {
     auto prdcData = boost::dynamic_pointer_cast<PRDCLegData>(data.concreteLegData());
     QL_REQUIRE(prdcData, "Wrong LegType, expected PRDC");
 
