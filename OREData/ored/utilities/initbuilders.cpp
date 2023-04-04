@@ -193,6 +193,7 @@ void initBuilders() {
     ORE_REGISTER_LEG_DATA("CommodityFloating", CommodityFloatingLegData, false)
     ORE_REGISTER_LEG_DATA("DurationAdjustedCMS", DurationAdjustedCmsLegData, false)
     ORE_REGISTER_LEG_DATA("EquityMargin", EquityMarginLegData, false)
+    ORE_REGISTER_LEG_DATA("PRDC", PRDCLegData, false)
 
     ORE_REGISTER_CALIBRATION_INSTRUMENT("CpiCapFloor", CpiCapFloor, false)
     ORE_REGISTER_CALIBRATION_INSTRUMENT("YoYCapFloor", YoYCapFloor, false)
