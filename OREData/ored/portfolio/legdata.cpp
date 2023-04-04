@@ -706,6 +706,51 @@ XMLNode* EquityLegData::toXML(XMLDocument& doc) {
     return node;
 }
 
+XMLNode* PRDCLegData::toXML(XMLDocument& doc) {
+    XMLNode* node = doc.allocNode(legNodeName());
+    XMLUtils::addChild(doc, node, "FxIndex", fxIndex_);
+    if (!fixingCalendar_.empty())
+        XMLUtils::addChild(doc, node, "FixingCalendar", fixingCalendar_);
+    if (!fixingConvention_.empty())
+        XMLUtils::addChild(doc, node, "FixingConvention", fixingConvention_);
+    if (fixingDays_ != Null<Size>())
+        XMLUtils::addChild(doc, node, "FixingDays", static_cast<int>(fixingDays_));
+    XMLUtils::addChild(doc, node, "IsInArrears", isInArrears_);
+    XMLUtils::addChildrenWithOptionalAttributes(doc, node, "DomesticRates", "DomesticRate", domesticRates_, "startDate",
+                                                domesticDates_);
+    XMLUtils::addChildrenWithOptionalAttributes(doc, node, "ForeignRates", "ForeignRate", foreignRates_, "startDate",
+                                                foreignDates_);
+    XMLUtils::addChildrenWithOptionalAttributes(doc, node, "Caps", "Cap", caps_, "startDate", capDates_);
+    XMLUtils::addChildrenWithOptionalAttributes(doc, node, "Floors", "Floor", floors_, "startDate", floorDates_);
+    return node;
+}
+
+void PRDCLegData::fromXML(XMLNode* node) {
+    XMLUtils::checkNode(node, legNodeName());
+    fxIndex_ = XMLUtils::getChildValue(node, "FxIndex", true);
+
+    domesticRates_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "DomesticRates", "DomesticRate", "startDate",
+                                                                     domesticDates_, &parseReal);
+    foreignRates_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "ForeignRates", "ForeignRate", "startDate",
+                                                                    foreignDates_, &parseReal);
+
+    // These are all optional
+    fixingCalendar_ = XMLUtils::getChildValue(node, "FixingCalendar", false);
+    fixingConvention_ = XMLUtils::getChildValue(node, "FixingConvention", false);
+    if (auto n = XMLUtils::getChildNode(node, "FixingDays"))
+        fixingDays_ = parseInteger(XMLUtils::getNodeValue(n));
+    else
+        fixingDays_ = Null<Size>();
+    if (auto* n = XMLUtils::getChildNode(node, "IsInArrears"))
+        isInArrears_ = parseBool(XMLUtils::getNodeValue(n));
+    else
+        isInArrears_ = true;
+
+    caps_ = XMLUtils::getChildrenValuesWithAttributes<Real>(node, "Caps", "Cap", "startDate", capDates_, &parseReal);
+    floors_ =
+        XMLUtils::getChildrenValuesWithAttributes<Real>(node, "Floors", "Floor", "startDate", floorDates_, &parseReal);
+}
+
 void AmortizationData::fromXML(XMLNode* node) {
     XMLUtils::checkNode(node, "AmortizationData");
     type_ = XMLUtils::getChildValue(node, "Type");
@@ -1829,6 +1874,7 @@ Leg makeCMBLeg(const LegData& data, const boost::shared_ptr<EngineFactory>& engi
     bool bondEndOfMonth = bondSchedule.endOfMonth();
     Frequency bondFrequency = bondSchedule.tenor().frequency();
     
+
     DayCounter dayCounter = parseDayCounter(data.dayCounter());
 
     // Create a ConstantMaturityBondIndex for each schedule start date

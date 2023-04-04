@@ -215,6 +215,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <CompileAs>Default</CompileAs>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -543,6 +544,7 @@
     <ClInclude Include="qle\cashflows\nonstandardyoyinflationcoupon.hpp" />
     <ClInclude Include="qle\cashflows\overnightindexedcoupon.hpp" />
     <ClInclude Include="qle\cashflows\blackovernightindexedcouponpricer.hpp" />
+    <ClInclude Include="qle\cashflows\prdccoupon.hpp" />
     <ClInclude Include="qle\cashflows\quantocouponpricer.hpp" />
     <ClInclude Include="qle\cashflows\strippedcapflooredcpicoupon.hpp" />
     <ClInclude Include="qle\cashflows\strippedcapflooredyoyinflationcoupon.hpp" />
@@ -579,6 +581,7 @@
     <ClInclude Include="qle\indexes\ibor\audbbsw.hpp" />
     <ClInclude Include="qle\indexes\ibor\brlcdi.hpp" />
     <ClInclude Include="qle\indexes\ibor\boebaserate.hpp" />
+    <ClInclude Include="qle\indexes\ibor\brldi.hpp" />
     <ClInclude Include="qle\indexes\ibor\chfsaron.hpp" />
     <ClInclude Include="qle\indexes\ibor\chftois.hpp" />
     <ClInclude Include="qle\indexes\ibor\clpcamara.hpp" />
@@ -593,6 +596,7 @@
     <ClInclude Include="qle\indexes\ibor\dkkcita.hpp" />
     <ClInclude Include="qle\indexes\ibor\dkkois.hpp" />
     <ClInclude Include="qle\indexes\ibor\ester.hpp" />
+    <ClInclude Include="qle\indexes\ibor\govar.hpp" />
     <ClInclude Include="qle\indexes\ibor\jpyeytibor.hpp" />
     <ClInclude Include="qle\indexes\ibor\hkdhibor.hpp" />
     <ClInclude Include="qle\indexes\ibor\hkdhonia.hpp" />
@@ -613,6 +617,7 @@
     <ClInclude Include="qle\indexes\ibor\plnpolonia.hpp" />
     <ClInclude Include="qle\indexes\ibor\plnwibor.hpp" />
     <ClInclude Include="qle\indexes\ibor\primeindex.hpp" />
+    <ClInclude Include="qle\indexes\ibor\reibor.hpp" />
     <ClInclude Include="qle\indexes\ibor\rubmosprime.hpp" />
     <ClInclude Include="qle\indexes\ibor\rubkeyrate.hpp" />
     <ClInclude Include="qle\indexes\ibor\saibor.hpp" />
@@ -764,7 +769,6 @@
     <ClInclude Include="qle\pricingengines\amccalculator.hpp" />
     <ClInclude Include="qle\pricingengines\analyticbarrierengine.hpp" />
     <ClInclude Include="qle\pricingengines\analyticcashsettledeuropeanengine.hpp" />
-    <ClInclude Include="qle\pricingengines\analyticdigitalamericanengine.hpp" />
     <ClInclude Include="qle\pricingengines\analyticdoublebarrierbinaryengine.hpp" />
     <ClInclude Include="qle\pricingengines\analyticdoublebarrierengine.hpp" />
     <ClInclude Include="qle\pricingengines\analyticeuropeanengine.hpp" />
@@ -781,6 +785,7 @@
     <ClCompile Include="qle\models\futureoptionhelper.cpp" />
     <ClCompile Include="qle\models\modelimpliedpricetermstructure.cpp" />
     <ClCompile Include="qle\pricingengines\analyticbarrierengine.cpp" />
+    <ClCompile Include="qle\pricingengines\analyticdigitalamericanengine.hpp" />
     <ClInclude Include="qle\pricingengines\analyticdkcpicapfloorengine.hpp" />
     <ClInclude Include="qle\pricingengines\analyticjycpicapfloorengine.hpp" />
     <ClInclude Include="qle\pricingengines\analyticjyyoycapfloorengine.hpp" />
@@ -1017,6 +1022,7 @@
     <ClCompile Include="qle\cashflows\nonstandardyoyinflationcoupon.cpp" />
     <ClCompile Include="qle\cashflows\overnightindexedcoupon.cpp" />
     <ClCompile Include="qle\cashflows\blackovernightindexedcouponpricer.cpp" />
+    <ClCompile Include="qle\cashflows\prdccoupon.cpp" />
     <ClCompile Include="qle\cashflows\quantocouponpricer.cpp" />
     <ClCompile Include="qle\cashflows\strippedcapflooredcpicoupon.cpp" />
     <ClCompile Include="qle\cashflows\strippedcapflooredyoyinflationcoupon.cpp" />
@@ -1178,7 +1184,6 @@
     <ClCompile Include="qle\processes\commodityschwartzstateprocess.cpp" />
     <ClCompile Include="qle\processes\crcirppstateprocess.cpp" />
     <ClCompile Include="qle\processes\crossassetstateprocess.cpp" />
-    <ClCompile Include="qle\processes\irhwstateprocess.cpp" />
     <ClCompile Include="qle\processes\irlgm1fstateprocess.cpp" />
     <ClCompile Include="qle\quotes\logquote.cpp" />
     <ClCompile Include="qle\termstructures\aposurface.cpp" />

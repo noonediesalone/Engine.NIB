@@ -876,7 +876,9 @@
     <ClInclude Include="ored\portfolio\multilegoption.hpp">
       <Filter>portfolio</Filter>
     </ClInclude>
-  </ItemGroup>
+    <ClInclude Include="ored\portfolio\builders\prdc.hpp">
+      <Filter>portfolio\builders</Filter>
+    </ClInclude>  </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ored\configuration\capfloorvolcurveconfig.cpp">
       <Filter>configuration</Filter>
@@ -1527,5 +1529,7 @@
     <ClCompile Include="ored\portfolio\multilegoption.cpp">
       <Filter>portfolio</Filter>
     </ClCompile>
-  </ItemGroup>
+    <ClCompile Include="ored\portfolio\builders\prdc.cpp">
+      <Filter>portfolio\builders</Filter>
+    </ClCompile>  </ItemGroup>
 </Project>
