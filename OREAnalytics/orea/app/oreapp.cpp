@@ -563,8 +563,7 @@ void OREApp::run(bool useAnalytics) {
 
     } catch (std::exception& e) {
         ALOG("Error: " << e.what());
-        CONSOLE("Error: " << e.what());
-        return;
+        QL_FAIL("Error: " << e.what());
     }
 
     timer.stop();
