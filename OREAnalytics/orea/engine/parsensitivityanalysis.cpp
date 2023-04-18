@@ -1285,12 +1285,13 @@ ParSensitivityAnalysis::makeFRA(const boost::shared_ptr<Market>& market, string 
         WLOG("FRA building - mismatch between input index (" << indexName << ") and conventions (" << conv->indexName()
                                                              << ") - using conventions");
     }
+    auto fra_tenor = fraConvIdx->tenor();
     QL_REQUIRE((term.units() == Months) || (term.units() == Years), "term unit must be Months or Years");
-    QL_REQUIRE(fraConvIdx->tenor().units() == Months, "index tenor unit must be Months (" << fraConvIdx->tenor() << ")("
-                                                                                          << term << ")(" << indexName
-                                                                                          << ")(" << name << ")");
-    QL_REQUIRE(term > fraConvIdx->tenor(), "term must be larger than index tenor");
-    Period startTerm = term - fraConvIdx->tenor(); // the input term refers to the end of the FRA accrual period
+    QL_REQUIRE(fra_tenor.units() == Months || fra_tenor.units() == Years, "index tenor unit must be Months or Years ("
+                                                                              << fra_tenor << ")(" << term << ")("
+                                                                              << indexName << ")(" << name << ")");
+    QL_REQUIRE(term > fra_tenor, "term must be larger than index tenor");
+    Period startTerm = term - fra_tenor; // the input term refers to the end of the FRA accrual period
     Calendar fraCal = fraConvIdx->fixingCalendar();
     Date asof_adj = fraCal.adjust(asof_); // same as in FraRateHelper
     Date todaySpot = fraConvIdx->valueDate(asof_adj);
@@ -1334,9 +1335,10 @@ ParSensitivityAnalysis::makeOIS(const boost::shared_ptr<Market>& market, string 
     //    - discounts: iborIndex(indexName) -> yieldCurve(yieldCurveName) -> discountCurve(ccy)
     //    - forwards:  iborIndex(indexName) -> yieldCurve(yieldCurveName) -> discountCurve(ccy)
     auto conventions = InstrumentConventions::instance().conventions();
-    boost::shared_ptr<OisConvention> conv = boost::dynamic_pointer_cast<OisConvention>(convention);
-    QL_REQUIRE(conv, "convention not recognised, expected OisConvention");
-    string name = indexName != "" ? indexName : conv->indexName();
+    auto convOis = boost::dynamic_pointer_cast<OisConvention>(convention);
+    auto convAvgOis = boost::dynamic_pointer_cast<AverageOisConvention>(convention);
+    QL_REQUIRE(convOis || convAvgOis, "convention not recognised, expected OisConvention or AverageOisConvention");
+    string name = indexName != "" ? indexName : (convOis ? convOis->indexName() : convAvgOis->indexName());
     boost::shared_ptr<IborIndex> index;
     if (market != nullptr) {
         index = market->iborIndex(name, marketConfiguration_).currentLink();
