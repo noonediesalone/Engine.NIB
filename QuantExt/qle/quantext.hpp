@@ -84,6 +84,7 @@
 #include <qle/indexes/compoequityindex.hpp>
 #include <qle/indexes/compositeindex.hpp>
 #include <qle/indexes/decpi.hpp>
+#include <qle/indexes/dividendmanager.hpp>
 #include <qle/indexes/dkcpi.hpp>
 #include <qle/indexes/eqfxindexbase.hpp>
 #include <qle/indexes/equityindex.hpp>
@@ -347,6 +348,7 @@
 #include <qle/pricingengines/discountingfxforwardengine.hpp>
 #include <qle/pricingengines/discountingriskybondengine.hpp>
 #include <qle/pricingengines/discountingswapenginemulticurve.hpp>
+#include <qle/pricingengines/indexcdsoptionbaseengine.hpp>
 #include <qle/pricingengines/indexcdstrancheengine.hpp>
 #include <qle/pricingengines/inflationcapfloorengines.hpp>
 #include <qle/pricingengines/lgmconvolutionsolver.hpp>
@@ -358,6 +360,7 @@
 #include <qle/pricingengines/mcmultilegoptionengine.hpp>
 #include <qle/pricingengines/midpointcdoengine.hpp>
 #include <qle/pricingengines/midpointindexcdsengine.hpp>
+#include <qle/pricingengines/numericalintegrationindexcdsoptionengine.hpp>
 #include <qle/pricingengines/numericlgmmultilegoptionengine.hpp>
 #include <qle/pricingengines/oiccbasisswapengine.hpp>
 #include <qle/pricingengines/paymentdiscountingengine.hpp>
