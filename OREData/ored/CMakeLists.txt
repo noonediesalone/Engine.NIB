@@ -453,7 +453,6 @@ portfolio/builders/multilegoption.hpp
 portfolio/builders/prdc.hpp
 portfolio/builders/quantoequityoption.hpp
 portfolio/builders/quantovanillaoption.hpp
-portfolio/builders/prdc.hpp
 portfolio/builders/swap.hpp
 portfolio/builders/swaption.hpp
 portfolio/builders/vanillaoption.hpp
