@@ -35,6 +35,11 @@ class BondRepo : public Trade {
 public:
     BondRepo() : Trade("BondRepo") {}
 
+    //! Constructor taking an envelope along with bond and leg data
+    BondRepo(Envelope env, const BondData& bondData, const LegData& legData)
+        : Trade("BondRepo", env), originalSecurityLegData_(bondData), securityLegData_(bondData),
+          cashLegData_(legData) {}
+
     virtual void build(const boost::shared_ptr<EngineFactory>&) override;
 
     virtual void fromXML(XMLNode* node) override;
