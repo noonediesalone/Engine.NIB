@@ -179,8 +179,7 @@ public:
     FloatingLegData()
         : LegAdditionalData("Floating"), fixingDays_(Null<Size>()), lookback_(0 * Days), rateCutoff_(Null<Size>()),
           isAveraged_(false), hasSubPeriods_(false), includeSpread_(false), nakedOption_(false),
-          telescopicValueDates_(false) {}
-    //! Constructor
+          telescopicValueDates_(false) {}    //! Constructor
     FloatingLegData(const string& index, QuantLib::Size fixingDays, bool isInArrears, const vector<double>& spreads,
                     const vector<string>& spreadDates = vector<string>(), const vector<double>& caps = vector<double>(),
                     const vector<string>& capDates = vector<string>(), const vector<double>& floors = vector<double>(),
@@ -224,6 +223,8 @@ public:
     const boost::optional<Period>& lastRecentPeriod() const { return lastRecentPeriod_; }
     const std::string& lastRecentPeriodCalendar() const { return lastRecentPeriodCalendar_; }
     bool telescopicValueDates() const { return telescopicValueDates_; }
+    ScheduleData fixingSchedule() const { return fixingSchedule_; }
+    ScheduleData resetSchedule() const { return resetSchedule_; }
     //@}
 
     //! \name Modifiers
@@ -244,13 +245,13 @@ public:
     //@}
 private:
     string index_;
-    QuantLib::Size fixingDays_;
-    QuantLib::Period lookback_;
-    QuantLib::Size rateCutoff_;
+    QuantLib::Size fixingDays_ = Null<Size>();
+    QuantLib::Period lookback_ = 0 * Days;
+    QuantLib::Size rateCutoff_ = Null<Size>();
     boost::optional<bool> isInArrears_;
-    bool isAveraged_;
-    bool hasSubPeriods_;
-    bool includeSpread_;
+    bool isAveraged_ = false;
+    bool hasSubPeriods_ = false;
+    bool includeSpread_ = false;
     vector<double> spreads_;
     vector<string> spreadDates_;
     vector<double> caps_;
@@ -259,11 +260,13 @@ private:
     vector<string> floorDates_;
     vector<double> gearings_;
     vector<string> gearingDates_;
-    bool nakedOption_;
-    bool localCapFloor_;
+    bool nakedOption_ = false;
+    bool localCapFloor_ = false;
     boost::optional<Period> lastRecentPeriod_;
     std::string lastRecentPeriodCalendar_;
-    bool telescopicValueDates_;
+    bool telescopicValueDates_ = false;
+    ScheduleData fixingSchedule_;
+    ScheduleData resetSchedule_;
 };
 
 //! Serializable CPI Leg Data
@@ -949,6 +952,8 @@ public:
     const std::vector<Indexing>& indexing() const { return indexing_; }
     const bool indexingFromAssetLeg() const { return indexingFromAssetLeg_; }
     const string& lastPeriodDayCounter() const { return lastPeriodDayCounter_; }
+    const ScheduleData& paymentSchedule() const { return paymentSchedule_; }
+    bool strictNotionalDates() const { return strictNotionalDates_; }
     //@}
 
     //! \name modifiers
@@ -978,7 +983,7 @@ protected:
 
 private:
     boost::shared_ptr<LegAdditionalData> concreteLegData_;
-    bool isPayer_;
+    bool isPayer_ = true;
     string currency_;
     string legType_;
     ScheduleData schedule_;
@@ -986,20 +991,22 @@ private:
     vector<double> notionals_;
     vector<string> notionalDates_;
     string paymentConvention_;
-    bool notionalInitialExchange_;
-    bool notionalFinalExchange_;
-    bool notionalAmortizingExchange_;
-    bool isNotResetXCCY_;
+    bool notionalInitialExchange_ = false;
+    bool notionalFinalExchange_ = false;
+    bool notionalAmortizingExchange_ =false;
+    bool isNotResetXCCY_ = true;
     string foreignCurrency_;
-    double foreignAmount_;
+    double foreignAmount_ = 0.0;
     string fxIndex_;
     std::vector<AmortizationData> amortizationData_;
     string paymentLag_;
     std::string paymentCalendar_;
     std::vector<std::string> paymentDates_;
     std::vector<Indexing> indexing_;
-    bool indexingFromAssetLeg_;
+    bool indexingFromAssetLeg_ = false;
     string lastPeriodDayCounter_;
+    ScheduleData paymentSchedule_;
+    bool strictNotionalDates_ = false;
 };
 
 //! \name Utilities for building QuantLib Legs
@@ -1016,8 +1023,8 @@ Leg makeBMALeg(const LegData& data, const boost::shared_ptr<QuantExt::BMAIndexWr
                const QuantLib::Date& openEndDateReplacement = Null<Date>());
 Leg makeSimpleLeg(const LegData& data);
 Leg makeNotionalLeg(const Leg& refLeg, const bool initNomFlow, const bool finalNomFlow, const bool amortNomFlow,
-                    const BusinessDayConvention paymentConvention, const Calendar paymentCalendar,
-                    const bool excludeIndexing = true);
+                    const QuantLib::Natural paymentLag, const BusinessDayConvention paymentConvention,
+                    const Calendar paymentCalendar, const bool excludeIndexing = true);
 Leg makeCPILeg(const LegData& data, const boost::shared_ptr<ZeroInflationIndex>& index,
                const boost::shared_ptr<EngineFactory>& engineFactory,
                const QuantLib::Date& openEndDateReplacement = Null<Date>());
@@ -1041,7 +1048,7 @@ Leg makeDigitalCMSSpreadLeg(const LegData& data, const boost::shared_ptr<QuantLi
 Leg makePRDCLeg(const LegData& data, const boost::shared_ptr<QuantExt::FxIndex>& fxIndex,
                 const boost::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
                 const QuantLib::Date& openEndDateReplacement = Null<Date>());
-Leg makeEquityLeg(const LegData& data, const boost::shared_ptr<QuantExt::EquityIndex>& equityCurve,
+Leg makeEquityLeg(const LegData& data, const boost::shared_ptr<QuantExt::EquityIndex2>& equityCurve,
                   const boost::shared_ptr<QuantExt::FxIndex>& fxIndex = nullptr,
                   const QuantLib::Date& openEndDateReplacement = Null<Date>());
 Real currentNotional(const Leg& leg);

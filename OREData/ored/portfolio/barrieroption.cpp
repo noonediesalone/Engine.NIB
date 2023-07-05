@@ -35,7 +35,7 @@
 #include <ql/instruments/compositeinstrument.hpp>
 #include <ql/instruments/vanillaoption.hpp>
 #include <qle/indexes/fxindex.hpp>
-#include <ql/experimental/barrieroption/doublebarrieroption.hpp>
+#include <ql/instruments/doublebarrieroption.hpp>
 
 using namespace QuantLib;
 using namespace QuantExt;
@@ -119,14 +119,14 @@ void BarrierOption::build(const boost::shared_ptr<EngineFactory>& engineFactory)
         vanilla = boost::make_shared<VanillaOption>(payoff, exercise);
     }
     
-    boost::variant<Barrier::Type, DoubleBarrier::Type> barrierType;
+    std::variant<Barrier::Type, DoubleBarrier::Type> barrierType;
     if (barrier_.levels().size() < 2) {
         barrierType = parseBarrierType(barrier_.type());
-        barrier = boost::make_shared<QuantLib::BarrierOption>(boost::get<Barrier::Type>(barrierType), barrier_.levels()[0].value(), 
+        barrier = boost::make_shared<QuantLib::BarrierOption>(std::get<Barrier::Type>(barrierType), barrier_.levels()[0].value(), 
             rebate, payoff, exercise);
     } else {
         barrierType = parseDoubleBarrierType(barrier_.type());
-        barrier = boost::make_shared<QuantLib::DoubleBarrierOption>(boost::get<DoubleBarrier::Type>(barrierType),
+        barrier = boost::make_shared<QuantLib::DoubleBarrierOption>(std::get<DoubleBarrier::Type>(barrierType),
             barrier_.levels()[0].value(), barrier_.levels()[1].value(), rebate, payoff, exercise);
     }
 
@@ -142,13 +142,13 @@ void BarrierOption::build(const boost::shared_ptr<EngineFactory>& engineFactory)
     if (barrier_.levels().size() < 2)
         instWrapper = boost::make_shared<SingleBarrierOptionWrapper>(
             barrier, positionType == Position::Long ? true : false, expiryDate,
-            settleType == Settlement::Physical ? true : false, vanilla, boost::get<Barrier::Type>(barrierType),
+            settleType == Settlement::Physical ? true : false, vanilla, std::get<Barrier::Type>(barrierType),
             spot, barrier_.levels()[0].value(), rebate, tradeCurrency(), startDate_, index, calendar_,
             tradeMultiplier(), tradeMultiplier(), additionalInstruments, additionalMultipliers);
     else
         instWrapper = boost::make_shared<DoubleBarrierOptionWrapper>(
             barrier, positionType == Position::Long ? true : false, expiryDate,
-            settleType == Settlement::Physical ? true : false, vanilla, boost::get<DoubleBarrier::Type>(barrierType),
+            settleType == Settlement::Physical ? true : false, vanilla, std::get<DoubleBarrier::Type>(barrierType),
             spot, barrier_.levels()[0].value(), barrier_.levels()[1].value(), rebate, tradeCurrency(), startDate_, index, calendar_,
             tradeMultiplier(), tradeMultiplier(), additionalInstruments, additionalMultipliers);
 
