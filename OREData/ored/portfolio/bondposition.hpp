@@ -30,8 +30,6 @@
 namespace ore {
 namespace data {
 
-using namespace ore::data;
-
 class BondPositionData : public XMLSerializable {
 public:
     BondPositionData() {}

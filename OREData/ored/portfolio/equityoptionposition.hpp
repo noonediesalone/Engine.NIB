@@ -33,8 +33,6 @@
 namespace ore {
 namespace data {
 
-using namespace ore::data;
-
 //! Serializable Equity Option Underlying Data, this represents one underlying in EquityOptionPositionData
 class EquityOptionUnderlyingData : public XMLSerializable {
 public:
