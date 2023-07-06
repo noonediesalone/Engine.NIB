@@ -291,8 +291,9 @@ std::string isdaSubProductSwap(const std::string& tradeId, const vector<LegData>
     for (Size i = 0; i < legData.size(); ++i) {
         std::string type = legData[i].legType();
         if (type == "Fixed" ||
-            type == "ZeroCouponFixed" ||
-            type == "Cashflow")
+            type == "ZeroCouponFixed" || 
+            type == "Cashflow" || 
+            type == "PRDC")
             nFixed++;
         else if (type == "Floating" ||
                  type == "CPI" ||
