@@ -355,6 +355,9 @@ void XvaAnalyticImpl::buildClassicCube(const boost::shared_ptr<Portfolio>& portf
         engine.registerProgressIndicator(progressBar);
         engine.registerProgressIndicator(progressLog);
 
+        if (!scenarioData_.empty())
+            engine.setAggregationScenarioData(*scenarioData_);
+
         engine.buildCube(portfolio, calculators, cptyCalculators,
                          analytic()->configurations().scenarioGeneratorData->withMporStickyDate());
 
