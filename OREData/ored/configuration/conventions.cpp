@@ -2448,6 +2448,13 @@ void Conventions::fromXML(XMLNode* node) {
             DLOG("Loading Convention " << id);
             convention->fromXML(child);
             add(convention);
+            if (boost::dynamic_pointer_cast<IborIndexConvention>(convention) ||
+                boost::dynamic_pointer_cast<OvernightIndexConvention>(convention)) {
+                auto conventions = InstrumentConventions::instance().conventions();
+                if (!conventions->has(convention->id())) {
+                    conventions->add(convention);
+                }
+            }
         } catch (exception& e) {
             WLOG("Exception parsing convention "
                  "XML Node (id = "
