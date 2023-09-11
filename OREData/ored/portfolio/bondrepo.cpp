@@ -64,9 +64,14 @@ void BondRepo::build(const boost::shared_ptr<EngineFactory>& engineFactory) {
     // add notional payment
 
     QL_REQUIRE(!cashLeg_.empty(), "BondRepo::build(): cash leg empty");
-    auto lastCpn = boost::dynamic_pointer_cast<Coupon>(cashLeg_.back());
-    QL_REQUIRE(lastCpn, "BondRepo::build(): expected coupon on cash leg");
-    cashLeg_.push_back(boost::make_shared<QuantLib::SimpleCashFlow>(lastCpn->nominal(), lastCpn->date()));
+    auto cashNotionalLeg = buildNotionalLeg(cashLegData_, cashLeg_, requiredFixings_, engineFactory->market(), configuration);
+    if (cashNotionalLeg.empty()) {
+        auto lastCpn = boost::dynamic_pointer_cast<Coupon>(cashLeg_.back());
+        QL_REQUIRE(lastCpn, "BondRepo::build(): expected coupon on cash leg");
+        cashLeg_.push_back(boost::make_shared<QuantLib::SimpleCashFlow>(lastCpn->nominal(), lastCpn->date()));
+    } else {
+        cashLeg_.insert(cashLeg_.end(), cashNotionalLeg.begin(), cashNotionalLeg.end());
+    }
 
     // add required fixings from bond
 
