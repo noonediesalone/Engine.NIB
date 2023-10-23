@@ -46,9 +46,7 @@
 #include <ql/math/integrals/integral.hpp>
 #include <ql/math/matrix.hpp>
 #include <ql/models/model.hpp>
-
 #include <boost/bind/bind.hpp>
-
 namespace QuantExt {
 using namespace QuantLib;
 

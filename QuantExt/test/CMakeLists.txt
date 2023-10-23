@@ -19,6 +19,7 @@ cashflow.cpp
 commodityforward.cpp
 commodityschwartzmodel.cpp
 commodityspreadoption.cpp
+computeenvironment.cpp
 correlationtermstructure.cpp
 cpicapfloor.cpp
 crcirpp.cpp
@@ -65,6 +66,7 @@ pricetermstructureadapter.cpp
 qle_calendars.cpp
 quadraticinterpolation.cpp
 randomvariable.cpp
+randomvariablelsmbasissystem.cpp
 ratehelpers.cpp
 stabilisedglls.cpp
 staticallycorrectedyieldtermstructure.cpp

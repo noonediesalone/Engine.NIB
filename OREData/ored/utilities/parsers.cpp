@@ -186,6 +186,11 @@ BusinessDayConvention parseBusinessDayConvention(const string& s) {
                                                    {"U", Unadjusted},
                                                    {"Unadjusted", Unadjusted},
                                                    {"INDIFF", Unadjusted},
+                                                   {"HalfMonthModifiedFollowing", HalfMonthModifiedFollowing},
+                                                   {"HMMF", HalfMonthModifiedFollowing},
+                                                   {"Half Month Modified Following", HalfMonthModifiedFollowing},
+                                                   {"HALFMONTHMF", HalfMonthModifiedFollowing},
+                                                   {"HalfMonthMF", HalfMonthModifiedFollowing},
                                                    {"NEAREST", Nearest},
                                                    {"NONE", Unadjusted},
                                                    {"NotApplicable", Unadjusted}};
@@ -285,6 +290,10 @@ Currency parseCurrency(const string& s) { return CurrencyParser::instance().pars
 Currency parseMinorCurrency(const string& s) { return CurrencyParser::instance().parseMinorCurrency(s); }
 
 Currency parseCurrencyWithMinors(const string& s) { return CurrencyParser::instance().parseCurrencyWithMinors(s); }
+
+pair<Currency, Currency> parseCurrencyPair(const string& s, const string& delimiters) {
+    return CurrencyParser::instance().parseCurrencyPair(s, delimiters);
+}
 
 bool checkCurrency(const string& code) { return CurrencyParser::instance().isValidCurrency(code); }
 
@@ -515,6 +524,27 @@ QuantLib::LsmBasisSystem::PolynomialType parsePolynomType(const std::string& s) 
         return it->second;
     } else {
         QL_FAIL("Polynom type \"" << s << "\" not recognized");
+    }
+}
+
+std::ostream& operator<<(std::ostream& os, QuantLib::LsmBasisSystem::PolynomialType a) {
+    switch (a) {
+    case LsmBasisSystem::PolynomialType::Monomial:
+        return os << "Monomial";
+    case LsmBasisSystem::PolynomialType::Laguerre:
+        return os << "Laguerre";
+    case LsmBasisSystem::PolynomialType::Hermite:
+        return os << "Hermite";
+    case LsmBasisSystem::PolynomialType::Hyperbolic:
+        return os << "Hyperbolic";
+    case LsmBasisSystem::PolynomialType::Legendre:
+        return os << "Legendre";
+    case LsmBasisSystem::PolynomialType::Chebyshev:
+        return os << "Chebychev";
+    case LsmBasisSystem::PolynomialType::Chebyshev2nd:
+        return os << "Chebychev2nd";
+    default:
+        QL_FAIL("unknown LsmBasisSystem::PolynomialType '" << static_cast<int>(a) << "'");
     }
 }
 
@@ -899,6 +929,10 @@ pair<string, string> parseBoostAny(const boost::any& anyType, Size precision) {
         std::ostringstream tmp;
         tmp << std::setprecision(precision) << r;
         oss << std::fixed << std::regex_replace(tmp.str(), pattern, std::string(""));
+    } else if (anyType.type() == typeid(QuantLib::Array)) {
+        resultType = "array";
+        QuantLib::Array r = boost::any_cast<QuantLib::Array>(anyType);
+        oss << std::fixed << std::setprecision(precision) << r;
     } else {
         ALOG("Unsupported Boost::Any type");
         resultType = "unsupported_type";

@@ -16,53 +16,60 @@
  FITNESS FOR A PARTICULAR PURPOSE. See the license for more details.
 */
 
-#include <boost/lexical_cast.hpp>
-#include <boost/numeric/ublas/vector.hpp>
-#include <boost/numeric/ublas/operation.hpp>
-#include <orea/cube/inmemorycube.hpp>
 #include <orea/app/structuredanalyticserror.hpp>
+#include <orea/cube/inmemorycube.hpp>
 #include <orea/engine/observationmode.hpp>
-#include <orea/engine/valuationengine.hpp>
-#include <orea/scenario/simplescenariofactory.hpp>
-#include <orea/scenario/sensitivityscenariodata.hpp>
 #include <orea/engine/parsensitivityanalysis.hpp>
+#include <orea/engine/valuationengine.hpp>
+#include <orea/scenario/sensitivityscenariodata.hpp>
+#include <orea/scenario/simplescenariofactory.hpp>
+
+#include <ored/marketdata/inflationcurve.hpp>
 #include <ored/utilities/indexparser.hpp>
 #include <ored/utilities/log.hpp>
 #include <ored/utilities/marketdata.hpp>
 #include <ored/utilities/to_string.hpp>
-#include <ored/marketdata/inflationcurve.hpp>
+
+#include <qle/indexes/inflationindexwrapper.hpp>
+#include <qle/instruments/brlcdiswap.hpp>
+#include <qle/instruments/crossccybasismtmresetswap.hpp>
+#include <qle/instruments/crossccybasisswap.hpp>
+#include <qle/instruments/deposit.hpp>
+#include <qle/instruments/fxforward.hpp>
+#include <qle/instruments/makecds.hpp>
+#include <qle/instruments/oibasisswap.hpp>
+#include <qle/instruments/subperiodsswap.hpp>
+#include <qle/instruments/tenorbasisswap.hpp>
+#include <qle/math/blockmatrixinverse.hpp>
+#include <qle/pricingengines/crossccyswapengine.hpp>
+#include <qle/pricingengines/depositengine.hpp>
+#include <qle/pricingengines/discountingfxforwardengine.hpp>
+#include <qle/pricingengines/inflationcapfloorengines.hpp>
+
+#include <ql/cashflows/capflooredinflationcoupon.hpp>
 #include <ql/cashflows/indexedcashflow.hpp>
 #include <ql/cashflows/overnightindexedcoupon.hpp>
-#include <ql/cashflows/capflooredinflationcoupon.hpp>
 #include <ql/errors.hpp>
 #include <ql/indexes/ibor/libor.hpp>
 #include <ql/instruments/creditdefaultswap.hpp>
+#include <ql/instruments/forwardrateagreement.hpp>
 #include <ql/instruments/makecapfloor.hpp>
 #include <ql/instruments/makeois.hpp>
 #include <ql/instruments/makevanillaswap.hpp>
-#include <qle/instruments/fixedbmaswap.hpp>
 #include <ql/instruments/yearonyearinflationswap.hpp>
 #include <ql/instruments/zerocouponinflationswap.hpp>
 #include <ql/math/solvers1d/newtonsafe.hpp>
 #include <ql/pricingengines/capfloor/bacheliercapfloorengine.hpp>
 #include <ql/pricingengines/capfloor/blackcapfloorengine.hpp>
-#include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/pricingengines/credit/midpointcdsengine.hpp>
+#include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/termstructures/yield/oisratehelper.hpp>
-#include <qle/indexes/inflationindexwrapper.hpp>
-#include <qle/instruments/brlcdiswap.hpp>
-#include <qle/instruments/crossccybasisswap.hpp>
-#include <qle/instruments/crossccybasismtmresetswap.hpp>
-#include <qle/instruments/deposit.hpp>
-#include <qle/instruments/forwardrateagreement.hpp>
-#include <qle/instruments/fxforward.hpp>
-#include <qle/instruments/makecds.hpp>
-#include <qle/pricingengines/crossccyswapengine.hpp>
-#include <qle/pricingengines/depositengine.hpp>
-#include <qle/pricingengines/discountingfxforwardengine.hpp>
-#include <qle/pricingengines/inflationcapfloorengines.hpp>
-#include <qle/math/blockmatrixinverse.hpp>
+#include <qle/instruments/fixedbmaswap.hpp>
+
+#include <boost/lexical_cast.hpp>
+#include <boost/numeric/ublas/vector.hpp>
+#include <boost/numeric/ublas/operation.hpp>
 
 using namespace QuantLib;
 using namespace QuantExt;
@@ -83,8 +90,8 @@ Real impliedQuote(const boost::shared_ptr<Instrument>& i) {
         return boost::dynamic_pointer_cast<VanillaSwap>(i)->fairRate();
     if (boost::dynamic_pointer_cast<Deposit>(i))
         return boost::dynamic_pointer_cast<Deposit>(i)->fairRate();
-    if (boost::dynamic_pointer_cast<QuantExt::ForwardRateAgreement>(i))
-        return boost::dynamic_pointer_cast<QuantExt::ForwardRateAgreement>(i)->forwardRate();
+    if (boost::dynamic_pointer_cast<QuantLib::ForwardRateAgreement>(i))
+        return boost::dynamic_pointer_cast<QuantLib::ForwardRateAgreement>(i)->forwardRate();
     if (boost::dynamic_pointer_cast<OvernightIndexedSwap>(i))
         return boost::dynamic_pointer_cast<OvernightIndexedSwap>(i)->fairRate();
     if (boost::dynamic_pointer_cast<CrossCcyBasisMtMResetSwap>(i))
@@ -738,6 +745,12 @@ void ParSensitivityAnalysis::computeParInstrumentSensitivities(const boost::shar
     boost::shared_ptr<ShiftScenarioGenerator> scenarioGenerator = 
         boost::dynamic_pointer_cast<ShiftScenarioGenerator>(simMarketScenGen);
     
+    struct SimMarketResetter {
+        SimMarketResetter(boost::shared_ptr<SimMarket> simMarket) : simMarket_(simMarket) {}
+        ~SimMarketResetter() { simMarket_->reset(); }
+        boost::shared_ptr<SimMarket> simMarket_;
+    } simMarketResetter(simMarket);
+
     simMarket->reset();
     scenarioGenerator->reset();
     simMarket->update(asof_);
@@ -870,13 +883,19 @@ void ParSensitivityAnalysis::computeParInstrumentSensitivities(const boost::shar
 
         // process par helpers
 
+        std::set<RiskFactorKey::KeyType> survivalAndRateCurveTypes = {
+            RiskFactorKey::KeyType::SurvivalProbability, RiskFactorKey::KeyType::DiscountCurve,
+            RiskFactorKey::KeyType::YieldCurve, RiskFactorKey::KeyType::IndexCurve};
+
         for (auto const& p : parHelpers_) {
 
             // skip if par helper has no sensi to zero risk factor (except the special treatment below kicks in)
 
             if (p.second->isCalculated() &&
-                (p.first.keytype != RiskFactorKey::KeyType::SurvivalProbability || p.first != desc[i].key1()))
+                (survivalAndRateCurveTypes.find(p.first.keytype) == survivalAndRateCurveTypes.end() ||
+                 p.first != desc[i].key1())) {
                 continue;
+            }
 
             // compute fair and base quotes
 
@@ -888,14 +907,14 @@ void ParSensitivityAnalysis::computeParInstrumentSensitivities(const boost::shar
 
             // special treatments for certain risk factors
 
-            // for curves with survival probabilities going to zero quickly we might see a sensitivity
-            // that is close to zero, which we sanitise here in order to prevent the Jacobi matrix
+            // for curves with survival probabilities / discount factors going to zero quickly we might see a
+            // sensitivity that is close to zero, which we sanitise here in order to prevent the Jacobi matrix
             // getting ill-conditioned or even singular
 
-            if (p.first.keytype == RiskFactorKey::KeyType::SurvivalProbability && p.first == desc[i].key1() &&
-                std::abs(tmp) < 0.01) {
-                WLOG("Setting Diagonal Default Curve Sensi " << p.first << " w.r.t. " << desc[i].key1()
-                                                             << " to 0.01 (got " << tmp << ")");
+            if (survivalAndRateCurveTypes.find(p.first.keytype) != survivalAndRateCurveTypes.end() &&
+                p.first == desc[i].key1() && std::abs(tmp) < 0.01) {
+                WLOG("Setting Diagonal Sensi " << p.first << " w.r.t. " << desc[i].key1() << " to 0.01 (got " << tmp
+                                               << ")");
                 tmp = 0.01;
             }
 
@@ -993,16 +1012,35 @@ void ParSensitivityAnalysis::computeParInstrumentSensitivities(const boost::shar
                         std::inserter(parKeysZero, parKeysZero.begin()));
     std::set_difference(rawKeysCheck.begin(), rawKeysCheck.end(), rawKeysNonZero.begin(), rawKeysNonZero.end(),
                         std::inserter(rawKeysZero, rawKeysZero.begin()));
-    for (auto const& k : parKeysZero) {
-        WLOG("Found par instrument which has no sensitivity to any of the risk factors: \"" << k << "\"");
-    }
-    for (auto const& k : rawKeysZero) {
-        WLOG("Found risk factor w.r.t. which no par instrument has a sensitivity: \"" << k << "\"");
+    std::set<RiskFactorKey> problematicKeys;
+    problematicKeys.insert(parKeysZero.begin(), parKeysZero.end());
+    problematicKeys.insert(rawKeysZero.begin(), rawKeysZero.end());
+    for (auto const& k : problematicKeys) {
+        std::string type;
+        if (parKeysZero.find(k) != parKeysZero.end())
+            type = "par instrument is insensitive to all zero risk factors";
+        else if (rawKeysZero.find(k) != rawKeysZero.end())
+            type = "zero risk factor that does not affect an par instrument";
+        else
+            type = "unknown";
+        Real parHelperValue = Null<Real>();
+        if (auto tmp = parHelpers_.find(k); tmp != parHelpers_.end())
+            parHelperValue = impliedQuote(tmp->second);
+        else if (auto tmp = parCaps_.find(k); tmp != parCaps_.end())
+            parHelperValue = tmp->second->NPV();
+        else if (auto tmp = parYoYCaps_.find(k); tmp != parYoYCaps_.end())
+            parHelperValue = tmp->second->NPV();
+        Real zeroFactorValue = Null<Real>();
+        if (simMarket->baseScenarioAbsolute()->has(k))
+            zeroFactorValue = simMarket->baseScenarioAbsolute()->get(k);
+        WLOG("zero/par relation problem for key '"
+             << k << "', type " + type + ", par value = "
+             << (parHelperValue == Null<Real>() ? "na" : std::to_string(parHelperValue))
+             << ", zero value = " << (zeroFactorValue == Null<Real>() ? "na" : std::to_string(zeroFactorValue)));
     }
 
     LOG("Computing par rate and flat vol sensitivities done");
-
-} // namespace sensitivity
+} // compute par instrument sensis
 
 void ParSensitivityAnalysis::alignPillars() {
     LOG("Align simulation market pillars to actual latest relevant dates of par instruments");
@@ -1315,7 +1353,7 @@ ParSensitivityAnalysis::makeFRA(const boost::shared_ptr<Market>& market, string 
         fraConvIdx = fraConvIdx->clone(ytsTmp);
     }
     auto helper =
-        boost::make_shared<QuantExt::ForwardRateAgreement>(valueDate, maturityDate, Position::Long, 0.0, 1.0, fraConvIdx, ytsTmp);
+        boost::make_shared<QuantLib::ForwardRateAgreement>(fraConvIdx, valueDate, Position::Long, 0.0, 1.0, ytsTmp);
     // set pillar date
     // yieldCurvePillars_[indexName == "" ? ccy : indexName].push_back((maturityDate - asof_) *
     // Days);
@@ -1746,14 +1784,14 @@ ParSensitivityAnalysis::makeCrossCcyBasisSwap(const boost::shared_ptr<Market>& m
     }
 
     if (isBaseDiscount)
-        parHelperDependencies_.emplace(RiskFactorKey::KeyType::DiscountCurve, baseCcy, 0);
-    else
         parHelperDependencies_.emplace(RiskFactorKey::KeyType::YieldCurve, baseCcy, 0);
+    else
+        parHelperDependencies_.emplace(RiskFactorKey::KeyType::DiscountCurve, baseCcy, 0);
 
     if (isNonBaseDiscount)
-        parHelperDependencies_.emplace(RiskFactorKey::KeyType::DiscountCurve, ccy, 0);
-    else
         parHelperDependencies_.emplace(RiskFactorKey::KeyType::YieldCurve, ccy, 0);
+    else
+        parHelperDependencies_.emplace(RiskFactorKey::KeyType::DiscountCurve, ccy, 0);
 
     parHelperDependencies_.emplace(RiskFactorKey::KeyType::IndexCurve, baseIndexName, 0);
     parHelperDependencies_.emplace(RiskFactorKey::KeyType::IndexCurve, indexName, 0);

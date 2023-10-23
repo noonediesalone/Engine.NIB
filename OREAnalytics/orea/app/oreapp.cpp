@@ -25,13 +25,19 @@
 #pragma warning(disable : 4503)
 #endif
 
+#include <orea/app/marketdatacsvloader.hpp>
 #include <orea/app/marketdatainmemoryloader.hpp>
 #include <orea/app/oreapp.hpp>
-#include <orea/orea.hpp>
-#include <ored/ored.hpp>
+#include <orea/app/structuredanalyticserror.hpp>
+#include <orea/app/structuredanalyticswarning.hpp>
+#include <orea/cube/cube_io.hpp>
+#include <orea/engine/observationmode.hpp>
+
 #include <ored/report/inmemoryreport.hpp>
 #include <ored/utilities/calendaradjustmentconfig.hpp>
 #include <ored/utilities/currencyconfig.hpp>
+
+#include <qle/version.hpp>
 
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/time/calendars/all.hpp>
@@ -40,8 +46,6 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/timer/timer.hpp>
-
-#include <iostream>
 
 using namespace std;
 using namespace ore::data;
@@ -215,6 +219,7 @@ void OREApp::analytics() {
 
     try {
         LOG("ORE analytics starting");
+        MEM_LOG_USING_LEVEL(ORE_WARNING)
 
         QL_REQUIRE(params_, "ORE input parameters not set");
                 
@@ -236,8 +241,14 @@ void OREApp::analytics() {
         CONSOLE(to_string(inputs_->analytics()));
         LOG("Requested analytics: " << to_string(inputs_->analytics()));
 
+        boost::shared_ptr<MarketCalibrationReportBase> mcr;
+        if (inputs_->outputTodaysMarketCalibration()) {
+            auto marketCalibrationReport = boost::make_shared<ore::data::InMemoryReport>();
+            mcr = boost::make_shared<MarketCalibrationReport>(string(), marketCalibrationReport);
+        }
+
         // Run the requested analytics
-        analyticsManager_->runAnalytics(inputs_->analytics());
+        analyticsManager_->runAnalytics(inputs_->analytics(), mcr);
 
         // Write reports to files in the results path
         Analytic::analytic_reports reports = analyticsManager_->reports();
@@ -271,10 +282,12 @@ void OREApp::analytics() {
         ostringstream oss;
         oss << "Error in ORE analytics: " << e.what();
         ALOG(oss.str());
+        MEM_LOG_USING_LEVEL(ORE_WARNING)
         CONSOLE(oss.str());
         QL_FAIL(oss.str());
     }
 
+    MEM_LOG_USING_LEVEL(ORE_WARNING)
     LOG("ORE analytics done");
 }
 
@@ -293,11 +306,45 @@ OREApp::OREApp(boost::shared_ptr<Parameters> params, bool console,
     if (params_->has("setup", "logMask")) {
         logMask = static_cast<Size>(parseInteger(params_->get("setup", "logMask")));
     }
-    
-    setupLog(outputPath, logFile, logMask, logRootPath);
 
-    auto conventions = boost::make_shared<Conventions>();
-    InstrumentConventions::instance().setConventions(conventions);
+    string progressLogFile, structuredLogFile;
+    Size progressLogRotationSize = 100 * 1024 * 1024;
+    bool progressLogToConsole = false;
+    Size structuredLogRotationSize = 100 * 1024 * 1024;
+    
+    if (params_->hasGroup("logging")) {
+        string logFileOverride = params_->get("logging", "logFile", false);
+        if (!logFileOverride.empty()) {
+            logFile = outputPath + '/' + logFileOverride;
+        }
+        string logMaskOverride = params_->get("logging", "logMask", false);
+        if (!logMaskOverride.empty()) {
+            logMask = static_cast<Size>(parseInteger(logMaskOverride));
+        }
+        progressLogFile = params_->get("logging", "progressLogFile", false);
+        if (!progressLogFile.empty()) {
+            progressLogFile = outputPath + '/' + progressLogFile;
+        }
+        string tmp = params_->get("logging", "progressLogRotationSize", false);
+        if (!tmp.empty()) {
+            progressLogRotationSize = static_cast<Size>(parseInteger(tmp));
+        }
+        tmp = params_->get("logging", "progressLogToConsole", false);
+        if (!tmp.empty()) {
+            progressLogToConsole = ore::data::parseBool(tmp);
+        }
+        structuredLogFile = params_->get("logging", "structuredLogFile", false);
+        if (!structuredLogFile.empty()) {
+            structuredLogFile = outputPath + '/' + structuredLogFile;
+        }
+        tmp = params_->get("logging", "structuredLogRotationSize", false);
+        if (!tmp.empty()) {
+            structuredLogRotationSize = static_cast<Size>(parseInteger(tmp));
+        }
+    }
+    
+    setupLog(outputPath, logFile, logMask, logRootPath, progressLogFile, progressLogRotationSize, progressLogToConsole,
+             structuredLogFile, structuredLogRotationSize);
 
     // Log the input parameters
     params_->log();
@@ -356,6 +403,7 @@ void OREApp::run(const std::vector<std::string>& marketData,
 
     try {
         LOG("ORE analytics starting");
+        MEM_LOG_USING_LEVEL(ORE_WARNING)
 
         QL_REQUIRE(inputs_, "ORE input parameters not set");
         
@@ -380,15 +428,23 @@ void OREApp::run(const std::vector<std::string>& marketData,
         CONSOLE(to_string(inputs_->analytics()));
         LOG("Requested analytics: " << to_string(inputs_->analytics()));
 
-        // Run the requested analytics
-        analyticsManager_->runAnalytics(inputs_->analytics());
+        boost::shared_ptr<MarketCalibrationReportBase> mcr;
+        if (inputs_->outputTodaysMarketCalibration()) {
+            auto marketCalibrationReport = boost::make_shared<ore::data::InMemoryReport>();
+            mcr = boost::make_shared<MarketCalibrationReport>(string(), marketCalibrationReport);
+        }
 
+        // Run the requested analytics
+        analyticsManager_->runAnalytics(inputs_->analytics(), mcr);
+
+        MEM_LOG_USING_LEVEL(ORE_WARNING)
         // Leave any report writing to the calling aplication
     }
     catch (std::exception& e) {
         ostringstream oss;
         oss << "Error in ORE analytics: " << e.what();
         ALOG(StructuredAnalyticsWarningMessage("OREApp::run()", oss.str(), e.what()));
+        MEM_LOG_USING_LEVEL(ORE_WARNING)
         CONSOLE(oss.str());
         QL_FAIL(oss.str());
         return;
@@ -512,6 +568,16 @@ void OREApp::buildInputParameters(boost::shared_ptr<InputParameters> inputs,
         WLOG("Reference data not found");
     }
 
+    tmp = params_->get("setup", "scriptLibrary", false);
+    if (tmp != "") {
+        string scriptFile = inputPath + "/" + tmp;
+        LOG("Loading script library from file: " << scriptFile);
+        inputs->setScriptLibraryFromFile(scriptFile);        
+    }
+    else {
+        WLOG("Script library not loaded");
+    }
+    
     if (params_->has("setup", "conventionsFile") && params_->get("setup", "conventionsFile") != "") {
         string conventionsFile = inputPath + "/" + params_->get("setup", "conventionsFile");
         LOG("Loading conventions from file: " << conventionsFile);
@@ -557,7 +623,7 @@ void OREApp::buildInputParameters(boost::shared_ptr<InputParameters> inputs,
     if (params_->has("setup", "buildFailedTrades"))
         inputs->setBuildFailedTrades(parseBool(params_->get("setup", "buildFailedTrades")));
 
-    tmp = params_->get("setup", "portfolioFile");
+    tmp = params_->get("setup", "portfolioFile", false);
     if (tmp != "") {
         inputs->setPortfolioFromFile(tmp, inputPath);
     } else {
@@ -776,11 +842,14 @@ void OREApp::buildInputParameters(boost::shared_ptr<InputParameters> inputs,
         if (tmp != "")
             inputs->setSimmVersion(tmp);
 
+        tmp = params_->get("simm", "mporDays", false);
+        if (tmp != "")
+            inputs->setMporDays(static_cast<Size>(parseInteger(tmp)));
+
         tmp = params_->get("simm", "crif", false);
         if (tmp != "") {
             string file = inputPath + "/" + tmp;
-            inputs->setCrifFromFile(file, inputs->csvEolChar(), inputs->csvSeparator(),
-                                    inputs->csvQuoteChar(), inputs->csvEscapeChar());
+            inputs->setCrifFromFile(file, inputs->csvEolChar(), inputs->csvSeparator(), '\"', inputs->csvEscapeChar());
         }
         
         tmp = params_->get("simm", "calculationCurrency", false);
@@ -801,6 +870,10 @@ void OREApp::buildInputParameters(boost::shared_ptr<InputParameters> inputs,
         tmp = params_->get("simm", "reportingCurrency", false);
         if (tmp != "")
             inputs->setSimmReportingCurrency(tmp);
+
+        tmp = params_->get("simm", "enforceIMRegulations", false);
+        if (tmp != "")
+            inputs->setEnforceIMRegulations(parseBool(tmp));
     }
     
     /************
@@ -1198,20 +1271,137 @@ void OREApp::buildInputParameters(boost::shared_ptr<InputParameters> inputs,
     tmp = params_->get("cashflow", "portfolioFilterDate", false);
     if (tmp != "")
         inputs->setPortfolioFilterDate(tmp);
-    
+
+    /*************
+     * ZERO TO PAR SENSI CONVERSION
+     *************/
+
+    tmp = params_->get("zeroToParSensiConversion", "active", false);
+    if (!tmp.empty() && parseBool(tmp)) {
+        inputs->insertAnalytic("PARCONVERSION");
+        
+        tmp = params_->get("zeroToParSensiConversion", "sensitivityInputFile", false);
+        if (tmp != "") {
+            inputs->setParConversionInputFile(inputPath + "/" + tmp);
+        }
+
+        tmp = params_->get("zeroToParSensiConversion", "idColumn", false);
+        if (tmp != "") {
+            inputs->setParConversionInputIdColumn(tmp);
+        }
+
+        tmp = params_->get("zeroToParSensiConversion", "riskFactorColumn", false);
+        if (tmp != "") {
+            inputs->setParConversionInputRiskFactorColumn(tmp);
+        }
+        
+        tmp = params_->get("zeroToParSensiConversion", "deltaColumn", false);
+        if (tmp != "") {
+            inputs->setParConversionInputDeltaColumn(tmp);
+        }
+
+        tmp = params_->get("zeroToParSensiConversion", "currencyColumn", false);
+        if (tmp != "") {
+            inputs->setParConversionInputCurrencyColumn(tmp);
+        }
+
+        tmp = params_->get("zeroToParSensiConversion", "baseNpvColumn", false);
+        if (tmp != "") {
+            inputs->setParConversionInputBaseNpvColumn(tmp);
+        }
+
+        tmp = params_->get("zeroToParSensiConversion", "shiftSizeColumn", false);
+        if (tmp != "") {
+            inputs->setParConversionInputShiftSizeColumn(tmp);
+        }
+
+        tmp = params_->get("zeroToParSensiConversion", "marketConfigFile", false);
+        if (tmp != "") {
+            string file = inputPath + "/" + tmp;
+            LOG("Loading par converions scenario sim market parameters from file" << file);
+            inputs->setParConversionSimMarketParamsFromFile(file);
+        } else {
+            WLOG("ScenarioSimMarket parameters for par conversion testing not loaded");
+        }
+
+        tmp = params_->get("zeroToParSensiConversion", "sensitivityConfigFile", false);
+        if (tmp != "") {
+            string file = inputPath + "/" + tmp;
+            LOG("Load par conversion scenario data from file" << file);
+            inputs->setParConversionScenarioDataFromFile(file);
+        } else {
+            WLOG("Par conversion scenario data not loaded");
+        }
+
+        tmp = params_->get("zeroToParSensiConversion", "pricingEnginesFile", false);
+        if (tmp != "") {
+            string file = inputPath + "/" + tmp;
+            LOG("Load pricing engine data from file: " << file);
+            inputs->setParConversionPricingEngineFromFile(file);
+        } else {
+            WLOG("Pricing engine data not found for par conversion, using global");
+        }
+
+        tmp = params_->get("zeroToParSensiConversion", "outputThreshold", false);
+        if (tmp != "")
+            inputs->setParConversionThreshold(parseReal(tmp));
+
+        tmp = params_->get("zeroToParSensiConversion", "outputJacobi", false);
+        if (tmp != "")
+            inputs->setParConversionOutputJacobi(parseBool(tmp));
+
+    }
+
+    /**********************
+     * Scenario_Statistics
+     **********************/
+
+    tmp = params_->get("scenarioStatistics", "active", false);
+    if (!tmp.empty() && parseBool(tmp)) {
+        inputs->insertAnalytic("SCENARIO_STATISTICS");
+        tmp = params_->get("scenarioStatistics", "distributionBuckets", false);
+        if (tmp != "")
+            inputs->setScenarioDistributionSteps(parseInteger(tmp));
+
+        tmp = params_->get("scenarioStatistics", "outputZeroRate", false);
+        if (tmp != "")
+            inputs->setScenarioOutputZeroRate(parseBool(tmp));
+
+        tmp = params_->get("scenarioStatistics", "simulationConfigFile", false);
+        if (tmp != "") {
+            string simulationConfigFile = inputPath + "/" + tmp;
+            LOG("Loading simulation config from file" << simulationConfigFile);
+            inputs->setExposureSimMarketParamsFromFile(simulationConfigFile);
+            inputs->setCrossAssetModelDataFromFile(simulationConfigFile);
+            inputs->setScenarioGeneratorDataFromFile(simulationConfigFile);
+            auto grid = inputs->scenarioGeneratorData()->getGrid();
+            DLOG("grid size=" << grid->size() << ", dates=" << grid->dates().size()
+                                << ", valuationDates=" << grid->valuationDates().size()
+                                << ", closeOutDates=" << grid->closeOutDates().size());
+        } else {
+            ALOG("Simulation market, model and scenario generator data not loaded");
+        }
+
+        tmp = params_->get("scenarioStatistics", "scenariodump", false);
+        if (tmp != "")
+            inputs->setWriteScenarios(true);
+    }
+
     if (inputs->analytics().size() == 0) {
         inputs->insertAnalytic("MARKETDATA");
         inputs->setOutputTodaysMarketCalibration(true);
         if (inputs->lazyMarketBuilding())
             LOG("Lazy market build being overridden to \"false\" for MARKETDATA analytic.")
-            inputs->setLazyMarketBuilding(false);
+        inputs->setLazyMarketBuilding(false);
     }
 
     LOG("buildInputParameters done");
 }
 
 void OREApp::setupLog(const std::string& path, const std::string& file, Size mask,
-                      const boost::filesystem::path& logRootPath) {
+                      const boost::filesystem::path& logRootPath, const std::string& progressLogFile,
+                      Size progressLogRotationSize, bool progressLogToConsole, const std::string& structuredLogFile,
+                      Size structuredLogRotationSize) {
     closeLog();
     
     boost::filesystem::path p{path};
@@ -1229,9 +1419,24 @@ void OREApp::setupLog(const std::string& path, const std::string& file, Size mas
     Log::instance().setRootPath(oreRootPath);
     Log::instance().setMask(mask);
     Log::instance().switchOn();
+
+    // Progress logger
+    auto progressLogger = boost::make_shared<ProgressLogger>();
+    string progressLogFilePath = progressLogFile.empty() ? path + '/' + "log_progress_%N.json" : progressLogFile;
+    progressLogger->setFileLog(progressLogFilePath, path, progressLogRotationSize);
+    progressLogger->setCoutLog(progressLogToConsole);
+    Log::instance().registerIndependentLogger(progressLogger);
+
+    // Structured message logger
+    auto structuredLogger = boost::make_shared<StructuredLogger>();
+    string structuredLogFilePath = structuredLogFile.empty() ? path + '/' + "log_structured_%N.json" : structuredLogFile;
+    structuredLogger->setFileLog(structuredLogFilePath, path, structuredLogRotationSize);
+    Log::instance().registerIndependentLogger(structuredLogger);
 }
 
 void OREApp::closeLog() { Log::instance().removeAllLoggers(); }
+
+std::string OREApp::version() { return std::string(OPEN_SOURCE_RISK_VERSION); }
 
 } // namespace analytics
 } // namespace ore

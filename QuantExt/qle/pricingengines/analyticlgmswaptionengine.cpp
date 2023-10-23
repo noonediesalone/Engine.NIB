@@ -263,7 +263,8 @@ void AnalyticLgmSwaptionEngine::calculate() const {
     Brent b;
     Real yStar;
     try {
-        yStar = b.solve(boost::bind(&AnalyticLgmSwaptionEngine::yStarHelper, this, boost::placeholders::_1), 1.0E-6, 0.0, 0.01);
+        yStar = b.solve(boost::bind(&AnalyticLgmSwaptionEngine::yStarHelper, this, boost::placeholders::_1), 1.0E-6,
+                        0.0, 0.01);
     } catch (const std::exception& e) {
         std::ostringstream os;
         os << "AnalyticLgmSwaptionEngine: failed to compute yStar (" << e.what() << "), parameter details: [";

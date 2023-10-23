@@ -139,7 +139,7 @@ void CrifLoader::add(CrifRecord cr, const bool onDiffAmountCcy) {
                    "The qualifier " << cr.qualifier << " should parse to a valid product class for risk type "
                                     << cr.riskType);
         // Check that the amount is a number >= 1.0
-        QL_REQUIRE(cr.amount >= 1.0, "Expected an amount greater than or equal to 1.0 "
+        QL_REQUIRE(cr.amount >= 0.0, "Expected an amount greater than or equal to 0 "
                                          << "for risk type " << cr.riskType << " and qualifier " << cr.qualifier
                                          << " but got " << cr.amount);
         break;
@@ -175,15 +175,22 @@ void CrifLoader::add(CrifRecord cr, const bool onDiffAmountCcy) {
                     it->amount += cr.amount;
                     updated = true;
                 }
+                if (cr.hasAmountResultCcy() && cr.hasResultCcy() && it->resultCurrency == cr.resultCurrency) {
+                    it->amountResultCcy += cr.amountResultCcy;
+                    updated = true;
+                }
                 if (updated)
                     DLOG("Updated net CRIF records: " << cr);
             } else if (it->riskType == RiskType::AddOnNotionalFactor ||
                        it->riskType == RiskType::ProductClassMultiplier) {
-                string errMsg = "Found more than one instance of risk type " + to_string(it->riskType) +
-                                ". Please check the SIMM parameters input. If enforceIMRegulations=False, then it "
-                                "is possible that multiple entries for different regulations now belong under the same "
-                                "'Unspecified' regulation.";
-                WLOG(ore::analytics::StructuredAnalyticsWarningMessage("SIMM", "Aggregating SIMM parameters", errMsg));
+                // Only log warning if the values are not the same. If they are, then there is no material discrepancy.
+                if (cr.amount != it->amount) {
+                    string errMsg = "Found more than one instance of risk type " + to_string(it->riskType) +
+                                    ". Please check the SIMM parameters input. If enforceIMRegulations=False, then it "
+                                    "is possible that multiple entries for different regulations now belong under the same "
+                                    "'Unspecified' regulation.";
+                    WLOG(ore::analytics::StructuredAnalyticsWarningMessage("SIMM", "Aggregating SIMM parameters", errMsg));
+                }
             } else {
                 // Handling in case new SIMM parameters are added in the future
                 WLOG(ore::analytics::StructuredAnalyticsWarningMessage("SIMM", "Aggregating SIMM parameters",
@@ -205,6 +212,10 @@ void CrifLoader::add(CrifRecord cr, const bool onDiffAmountCcy) {
             }
             if (cr.hasAmount() && cr.hasAmountCcy() && it->amountCurrency == cr.amountCurrency) {
                 it->amount += cr.amount;
+                updated = true;
+            }
+            if (cr.hasAmountResultCcy() && cr.hasResultCcy() && it->resultCurrency == cr.resultCurrency) {
+                it->amountResultCcy += cr.amountResultCcy;
                 updated = true;
             }
             if (updated)
@@ -443,18 +454,17 @@ bool CrifLoader::process(const vector<string>& entries, Size maxIndex, Size curr
             // a qualifier in a minor ccy?
             if (!checkCurrency(cr.qualifier) && checkCurrency(ccyUpper))
                 cr.qualifier = ccyUpper;
-        } else if (cr.riskType == RiskType::FXVol && cr.qualifier.size() == 6) {
-            string ccyPairUpper = boost::to_upper_copy(cr.qualifier);
-            string ccy1Upper = ccyPairUpper.substr(0, 3);
-            string ccy2Upper = ccyPairUpper.substr(3);
-            string ccy1Lower = cr.qualifier.substr(0, 3);
-            string ccy2Lower = cr.qualifier.substr(3);
+        } else if (cr.riskType == RiskType::FXVol && (cr.qualifier.size() == 6 || cr.qualifier.size() == 7)) {
 
-            // If ccy pair is already valid, do nothing. Otherwise, replace with uppercase equivalent of ccy1 and ccy2.
-            // FIXME: Minor currencies will fail to get spotted here, though it is not likely that we will have
-            // a ccy pair where at least one is a minor currency?
-            if (!(checkCurrency(ccy1Lower) && checkCurrency(ccy2Lower)) && checkCurrency(ccy1Upper) && checkCurrency(ccy2Upper))
-                cr.qualifier = ccyPairUpper;
+            // Remove delimiters between the two currencies
+            const string ccyPairDelimiters = "/.,-_|;: ";
+            auto ccyPair = ore::data::parseCurrencyPair(boost::to_upper_copy(cr.qualifier), ccyPairDelimiters);
+
+            // Convert to uppercase
+            string ccy1Upper = ccyPair.first.code();
+            string ccy2Upper = ccyPair.second.code();
+
+            cr.qualifier = ccy1Upper + ccy2Upper;
         }
 
         // Bucket - Hardcoded "Residual" for case-insensitive check since this is currently the only non-numeric value
@@ -557,7 +567,9 @@ void CrifLoader::fillAmountUsd(const boost::shared_ptr<ore::data::Market> market
                 if (!cr.hasAmount() || !cr.hasAmountCcy()) {
                     WLOG(ore::data::StructuredTradeWarningMessage(
                         cr.tradeId, cr.tradeType, "Populating CRIF amount USD",
-                        "CRIF record is missing one of Amount and AmountCurrency: " + to_string(cr)));
+                        "CRIF record is missing one of Amount and AmountCurrency, and there is no amountUsd value to "
+                        "fall back to: " +
+                            to_string(cr)));
                 } else {
                     Real usdSpot = market->fxRate(cr.amountCurrency + "USD")->value();
                     cr.amountUsd = cr.amount * usdSpot;

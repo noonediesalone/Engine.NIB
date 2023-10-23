@@ -24,6 +24,8 @@
 #ifndef quantext_crossasset_analytics_base_hpp
 #define quantext_crossasset_analytics_base_hpp
 
+#include <boost/bind/bind.hpp>
+
 #include <ql/types.hpp>
 
 #include <qle/models/crossassetmodel.hpp>

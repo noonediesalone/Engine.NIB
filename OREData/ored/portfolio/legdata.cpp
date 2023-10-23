@@ -17,6 +17,7 @@
 */
 
 #include <ored/portfolio/bond.hpp>
+#include <ored/portfolio/builders/capflooredaveragebmacouponleg.hpp>
 #include <ored/portfolio/builders/capflooredaverageonindexedcouponleg.hpp>
 #include <ored/portfolio/builders/capflooredcpileg.hpp>
 #include <ored/portfolio/builders/capfloorediborleg.hpp>
@@ -30,7 +31,9 @@
 #include <ored/portfolio/legdata.hpp>
 #include <ored/portfolio/makenonstandardlegs.hpp>
 #include <ored/portfolio/referencedata.hpp>
+#include <ored/portfolio/structuredtradeerror.hpp>
 #include <ored/portfolio/types.hpp>
+#include <ored/utilities/bondindexbuilder.hpp>
 #include <ored/utilities/indexnametranslator.hpp>
 #include <ored/utilities/log.hpp>
 #include <ored/utilities/marketdata.hpp>
@@ -40,6 +43,7 @@
 #include <qle/cashflows/averageonindexedcoupon.hpp>
 #include <qle/cashflows/averageonindexedcouponpricer.hpp>
 #include <qle/cashflows/brlcdicouponpricer.hpp>
+#include <qle/cashflows/cappedflooredaveragebmacoupon.hpp>
 #include <qle/cashflows/cmbcoupon.hpp>
 #include <qle/cashflows/couponpricer.hpp>
 #include <qle/cashflows/cpicoupon.hpp>
@@ -201,6 +205,16 @@ void FloatingLegData::fromXML(XMLNode* node) {
     if (auto tmp = XMLUtils::getChildNode(node, "ResetSchedule")) {
         resetSchedule_.fromXML(tmp);
     }
+    vector<std::string> histFixingDates;
+    vector<QuantLib::Real> histFixingValues = XMLUtils::getChildrenValuesWithAttributes<Real>(
+        node, "HistoricalFixings", "Fixing", "fixingDate", histFixingDates,
+                                                  &parseReal);
+
+    QL_REQUIRE(histFixingDates.size() == histFixingValues.size(), "Mismatch Fixing values and dates");
+    for (size_t i = 0; i < histFixingDates.size(); ++i) {
+        auto dt = parseDate(histFixingDates[i]);
+        historicalFixings_[dt] = histFixingValues[i];
+    }
 }
 
 XMLNode* FloatingLegData::toXML(XMLDocument& doc) {
@@ -238,6 +252,12 @@ XMLNode* FloatingLegData::toXML(XMLDocument& doc) {
         auto tmp = resetSchedule_.toXML(doc);
         XMLUtils::setNodeName(doc, tmp, "ResetSchedule");
         XMLUtils::appendNode(node, tmp);
+    }
+    if (!historicalFixings_.empty()) {
+        auto histFixings = XMLUtils::addChild(doc, node, "HistoricalFixings");
+        for (const auto& [fixingDate, fixingValue] : historicalFixings_) {
+            XMLUtils::addChild(doc, histFixings, "Fixing", to_string(fixingValue), "fixingDate", to_string(fixingDate));
+        }
     }
     return node;
 }
@@ -1513,13 +1533,10 @@ Leg makeOISLeg(const LegData& data, const boost::shared_ptr<OvernightIndex>& ind
 }
 
 Leg makeBMALeg(const LegData& data, const boost::shared_ptr<QuantExt::BMAIndexWrapper>& indexWrapper,
-               const QuantLib::Date& openEndDateReplacement) {
+               const boost::shared_ptr<EngineFactory>& engineFactory, const QuantLib::Date& openEndDateReplacement) {
     boost::shared_ptr<FloatingLegData> floatData = boost::dynamic_pointer_cast<FloatingLegData>(data.concreteLegData());
     QL_REQUIRE(floatData, "Wrong LegType, expected Floating, got " << data.legType());
     boost::shared_ptr<BMAIndex> index = indexWrapper->bma();
-
-    if (floatData->caps().size() > 0 || floatData->floors().size() > 0)
-        QL_FAIL("Caps and floors are not supported for BMA legs");
 
     Schedule schedule = makeSchedule(data.schedule(), openEndDateReplacement);
     DayCounter dc = parseDayCounter(data.dayCounter());
@@ -1532,18 +1549,58 @@ Leg makeBMALeg(const LegData& data, const boost::shared_ptr<QuantExt::BMAIndexWr
         paymentCalendar = parseCalendar(data.paymentCalendar());
 
     vector<Real> notionals = buildScheduledVectorNormalised(data.notionals(), data.notionalDates(), schedule, 0.0);
-    vector<Real> spreads = buildScheduledVector(floatData->spreads(), floatData->spreadDates(), schedule);
-    vector<Real> gearings = buildScheduledVector(floatData->gearings(), floatData->gearingDates(), schedule);
+    vector<Real> spreads =
+        buildScheduledVectorNormalised(floatData->spreads(), floatData->spreadDates(), schedule, 0.0);
+    vector<Real> gearings =
+        buildScheduledVectorNormalised(floatData->gearings(), floatData->gearingDates(), schedule, 1.0);
+    vector<Real> caps =
+        buildScheduledVectorNormalised(floatData->caps(), floatData->capDates(), schedule, (Real)Null<Real>());
+    vector<Real> floors =
+        buildScheduledVectorNormalised(floatData->floors(), floatData->floorDates(), schedule, (Real)Null<Real>());
 
     applyAmortization(notionals, data, schedule, false);
 
-    AverageBMALeg leg = AverageBMALeg(schedule, index)
-                            .withNotionals(notionals)
-                            .withSpreads(spreads)
-                            .withPaymentDayCounter(dc)
-                            .withPaymentCalendar(paymentCalendar)
-                            .withPaymentAdjustment(bdc)
-                            .withGearings(gearings);
+    Leg leg = AverageBMALeg(schedule, index)
+                  .withNotionals(notionals)
+                  .withSpreads(spreads)
+                  .withPaymentDayCounter(dc)
+                  .withPaymentCalendar(paymentCalendar)
+                  .withPaymentAdjustment(bdc)
+                  .withGearings(gearings);
+
+    // try to set the rate computation period based on the schedule tenor
+
+    Period rateComputationPeriod = 0 * Days;
+    if (!data.schedule().rules().empty() && !data.schedule().rules().front().tenor().empty())
+        rateComputationPeriod = parsePeriod(data.schedule().rules().front().tenor());
+    else if (!data.schedule().dates().empty() && !data.schedule().dates().front().tenor().empty())
+        rateComputationPeriod = parsePeriod(data.schedule().dates().front().tenor());
+
+    // handle caps / floors
+
+    if (floatData->caps().size() > 0 || floatData->floors().size() > 0) {
+
+        boost::shared_ptr<QuantExt::CapFlooredAverageBMACouponPricer> cfCouponPricer;
+        auto builder = boost::dynamic_pointer_cast<CapFlooredAverageBMACouponLegEngineBuilder>(
+            engineFactory->builder("CapFlooredAverageBMACouponLeg"));
+        QL_REQUIRE(builder, "No builder found for CapFlooredAverageBMACouponLeg");
+        cfCouponPricer = boost::dynamic_pointer_cast<CapFlooredAverageBMACouponPricer>(
+            builder->engine(IndexNameTranslator::instance().oreName(index->name()), rateComputationPeriod));
+        QL_REQUIRE(cfCouponPricer, "internal error, could not cast to CapFlooredAverageBMACouponPricer");
+
+        for (Size i = 0; i < leg.size(); ++i) {
+            auto bmaCpn = boost::dynamic_pointer_cast<AverageBMACoupon>(leg[i]);
+            QL_REQUIRE(bmaCpn, "makeBMALeg(): internal error, exepcted AverageBMACoupon. Contact dev.");
+            if (caps[i] != Null<Real>() || floors[i] != Null<Real>()) {
+                auto cpn = boost::make_shared<CappedFlooredAverageBMACoupon>(
+                    bmaCpn, caps[i], floors[i], floatData->nakedOption(), floatData->includeSpread());
+                cpn->setPricer(cfCouponPricer);
+                leg[i] = cpn;
+            }
+        }
+    }
+
+    // return the leg
 
     return leg;
 }
@@ -2702,9 +2759,11 @@ void applyIndexing(Leg& leg, const LegData& data, const boost::shared_ptr<Engine
                 QL_REQUIRE(!(boost::dynamic_pointer_cast<BondFuturesIndex>(bi)),
                            "BondFuture Legs are not yet supported");
                 BondData bondData(bi->securityName(), 1.0);
-                index = buildBondIndex(bondData, indexing.indexIsDirty(), indexing.indexIsRelative(),
+                BondIndexBuilder bondIndexBuilder(bondData, indexing.indexIsDirty(), indexing.indexIsRelative(),
                                        parseCalendar(indexing.fixingCalendar()),
-                                       indexing.indexIsConditionalOnSurvival(), engineFactory, requiredFixings);
+                                       indexing.indexIsConditionalOnSurvival(), engineFactory);
+                index = bondIndexBuilder.bondIndex();
+                bondIndexBuilder.addRequiredFixings(requiredFixings, leg);
             } else {
                 QL_FAIL("invalid index '" << indexing.index()
                                           << "' in indexing data, expected EQ-, FX-, COMM-, BOND- index");
@@ -2731,6 +2790,7 @@ void applyIndexing(Leg& leg, const LegData& data, const boost::shared_ptr<Engine
         }
     }
 }
+
 
 boost::shared_ptr<QuantExt::BondIndex> buildBondIndex(const BondData& securityData, const bool dirty,
                                                       const bool relative, const Calendar& fixingCalendar,
@@ -2920,6 +2980,55 @@ Leg buildNotionalLeg(const LegData& data, const Leg& leg, RequiredFixings& requi
     } else {
         return Leg();
     }
+}
+
+namespace {
+std::string getCmbLegSecurity(const std::string& genericBond) {
+    return genericBond.substr(0, genericBond.find_last_of('-'));
+}
+
+boost::shared_ptr<BondReferenceDatum> getCmbLegRefData(const CMBLegData& cmbData,
+                                                       const boost::shared_ptr<ReferenceDataManager>& refData) {
+    QL_REQUIRE(refData, "getCmbLegCreditQualifierMapping(): reference data is null");
+    std::string security = getCmbLegSecurity(cmbData.genericBond());
+    if (refData->hasData(ore::data::BondReferenceDatum::TYPE, security)) {
+        auto bondRefData = boost::dynamic_pointer_cast<ore::data::BondReferenceDatum>(
+            refData->getData(ore::data::BondReferenceDatum::TYPE, security));
+        QL_REQUIRE(bondRefData != nullptr, "getCmbLegRefData(): internal error, could not cast to BondReferenceDatum");
+        return bondRefData;
+    }
+    return nullptr;
+}
+} // namespace
+
+std::string getCmbLegCreditRiskCurrency(const CMBLegData& ld, const boost::shared_ptr<ReferenceDataManager>& refData) {
+    if (auto bondRefData = getCmbLegRefData(ld, refData)) {
+        std::string security = getCmbLegSecurity(ld.genericBond());
+        BondData bd(security, 1.0);
+        bd.populateFromBondReferenceData(bondRefData);
+        return bd.currency();
+    }
+    return std::string();
+}
+
+std::pair<std::string, SimmCreditQualifierMapping>
+getCmbLegCreditQualifierMapping(const CMBLegData& ld, const boost::shared_ptr<ReferenceDataManager>& refData,
+                                const std::string& tradeId, const std::string& tradeType) {
+    string source;
+    ore::data::SimmCreditQualifierMapping target;
+    std::string security = getCmbLegSecurity(ld.genericBond());
+    if (auto bondRefData = getCmbLegRefData(ld, refData)) {
+        source = ore::data::securitySpecificCreditCurveName(security, bondRefData->bondData().creditCurveId);
+        target.targetQualifier = security;
+        target.creditGroup = bondRefData->bondData().creditGroup;
+    }
+    if (source.empty() || target.targetQualifier.empty()) {
+        ALOG(ore::data::StructuredTradeErrorMessage(tradeId, tradeType, "getCmbLegCreditQualifierMapping()",
+                                                    "Could not set mapping for CMB Leg security '" +
+                                                        security +
+                                                        "'. Check security name and reference data."));
+    }
+    return std::make_pair(source, target);
 }
 
 } // namespace data

@@ -1,8 +1,12 @@
 include(CheckCXXCompilerFlag)
-include(CheckLinkerFlag)
+if(CMAKE_MINOR_VERSION GREATER 18 OR CMAKE_MINOR_VERSION EQUAL 18)
+    include(CheckLinkerFlag)
+endif()
 
 option(MSVC_LINK_DYNAMIC_RUNTIME "Link against dynamic runtime" ON)
 option(MSVC_PARALLELBUILD "Use flag /MP" ON)
+
+option(QL_USE_PCH OFF)
 
 # define build type clang address sanitizer + undefined behaviour + LIBCPP assertions, but keep O2
 set(CMAKE_CXX_FLAGS_CLANG_ASAN_O2 "-fsanitize=address,undefined -fno-omit-frame-pointer -D_LIBCPP_ENABLE_ASSERTIONS=1 -g -O2")
@@ -29,6 +33,22 @@ endmacro()
 # use CXX 17, disable gnu extensions
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS FALSE)
+
+# If available, use PIC for shared libs and PIE for executables
+if (NOT DEFINED CMAKE_POSITION_INDEPENDENT_CODE)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+if (CMAKE_POSITION_INDEPENDENT_CODE)
+    # cmake policy CMP0083: add PIE support if possible (need cmake 3.14)
+    include(CheckPIESupported)
+    check_pie_supported()
+endif()
+
+# set compiler macro if open cl is enabled
+if (ORE_ENABLE_OPENCL)
+  add_compile_definitions(ORE_ENABLE_OPENCL)
+endif()
+
 
 # On single-configuration builds, select a default build type that gives the same compilation flags as a default autotools build.
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -123,6 +143,19 @@ else()
     # switch off blas debug for build types release
     if(NOT("${CMAKE_BUILD_TYPE}" STREQUAL "Debug"))
         add_definitions(-DBOOST_UBLAS_NDEBUG)
+    endif()
+
+    # add pthread flag
+    add_compiler_flag("-pthread" usePThreadCompilerFlag)
+    if(CMAKE_MINOR_VERSION GREATER 18 OR CMAKE_MINOR_VERSION EQUAL 18)
+        add_linker_flag("-pthread" usePThreadLinkerFlag)
+    endif()
+
+    if(QL_USE_PCH)
+      # see https://ccache.dev/manual/4.8.3.html#_precompiled_headers
+      add_compiler_flag("-Xclang -fno-pch-timestamp" supportsNoPchTimestamp)
+      # needed for gcc, although the ccache documentation does not strictly require this
+      add_compiler_flag("-fpch-preprocess" supportsPchPreprocess)
     endif()
 
     # enable boost assert handler

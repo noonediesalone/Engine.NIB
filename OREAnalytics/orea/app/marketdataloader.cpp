@@ -134,7 +134,7 @@ void additional_equity_fixings(map<string, set<Date>>& fixings, const TodaysMark
                     indexDecomposition->addAdditionalFixingsForEquityIndexDecomposition(asof, fixings);
                 }
             } catch (const std::exception& e) {
-                ALOG("adding addtional equity fixing failed, " << e.what());
+                ALOG("adding additional equity fixing failed, " << e.what());
             }
         }
     }
@@ -171,7 +171,7 @@ void MarketDataLoader::populateFixings(
         FixingMap portfolioFixings;
         std::map<std::pair<std::string, QuantLib::Date>, std::set<QuantLib::Date>> lastAvailableFixingLookupMap;
         
-        // portfolio fixings will warn if missinbg
+        // portfolio fixings will warn if missing
         if (inputs_->portfolio()) {
             portfolioFixings = inputs_->portfolio()->fixings();
             LOG("The portfolio depends on fixings from " << portfolioFixings.size() << " indices");
@@ -185,7 +185,7 @@ void MarketDataLoader::populateFixings(
                 addMarketFixingDates(d, fixings_, *tmp);
             LOG("Add fixing possibly required for equity index delta risk decomposition")
             additional_equity_fixings(fixings_, *tmp, inputs_->refDataManager(),
-                                  inputs_->curveConfigs().front());
+                                  inputs_->curveConfigs().get());
         }
 
         if (inputs_->eomInflationFixings()) {
@@ -237,7 +237,7 @@ void MarketDataLoader::populateLoader(
     QL_REQUIRE(!inputs_->curveConfigs().empty(), "Need at least one curve configuration to populate loader.");
     QL_REQUIRE(todaysMarketParameters.size() > 0, "No todaysMarketParams provided to populate market data loader.");
 
-    // for equitites check if we have corporate action data
+    // for equities check if we have corporate action data
     std::map<std::string, std::string> equities;
     for (const auto& tmp : todaysMarketParameters) {
         if (tmp->hasMarketObject(MarketObject::EquityCurve)) {
@@ -273,7 +273,7 @@ void MarketDataLoader::populateLoader(
         for (auto c : tmp->configurations())
             configurations.insert(c.first);
 
-        for (const auto& curveConfig : inputs_->curveConfigs()) {
+        for (const auto& [_,curveConfig] : inputs_->curveConfigs().curveConfigurations()) {
             auto qs = curveConfig->quotes(tmp, configurations);
             quotes.insert(qs.begin(), qs.end());
         }

@@ -152,6 +152,12 @@ QuantLib::Currency parseMinorCurrency(const string& s);
  */
 QuantLib::Currency parseCurrencyWithMinors(const string& s);
 
+//! Convert text to std::pair<QuantLib::Currency, QuantLib::Currency>
+/*!
+  \ingroup utilities
+ */
+std::pair<QuantLib::Currency, QuantLib::Currency> parseCurrencyPair(const string& s, const string& delimiters);
+
 //! check for vaid currency code, including minors and pseudo currencies
 /*!
   \ingroup utilities
@@ -259,6 +265,12 @@ void parseDateOrPeriod(const string& s, QuantLib::Date& d, QuantLib::Period& p, 
 \ingroup utilities
 */
 QuantLib::LsmBasisSystem::PolynomialType parsePolynomType(const std::string& s);
+
+//! Write QuantLib::LsmBasisSystem::PolynomialType to stream
+/*!
+\ingroup utilities
+*/
+std::ostream& operator<<(std::ostream& os, QuantLib::LsmBasisSystem::PolynomialType a);
 
 //! Convert text to QuantLib::SobolBrownianGenerator::Ordering
 /*!

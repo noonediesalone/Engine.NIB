@@ -329,6 +329,8 @@ SimmConfiguration::IMModel parseIMModel(const std::string& pc);
 
 SimmConfiguration::Regulation parseRegulation(const std::string& regulation);
 
+std::string combineRegulations(const std::string&, const std::string&);
+
 //! Reads a string containing regulations applicable for a given CRIF record
 std::set<std::string> parseRegulationString(const std::string& regsString,
                                             const std::set<std::string>& valueIfEmpty = {"Unspecified"});
@@ -346,10 +348,6 @@ std::string filterRegulations(const std::string& regsString, const std::vector<s
 
 //! From a vector of regulations, determine the winning regulation based on order of priority
 SimmConfiguration::Regulation getWinningRegulation(const std::vector<std::string>& winningRegulations);
-
-SimmConfiguration::ProductClass simmProductClassFromOreTradeType(const std::string& tradeType);
-
-SimmConfiguration::ProductClass scheduleProductClassFromOreTradeType(const std::string& tradeType);
 
 } // namespace analytics
 } // namespace ore

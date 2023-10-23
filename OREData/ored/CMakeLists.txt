@@ -96,12 +96,17 @@ model/localvolmodelbuilder.cpp
 model/modeldata.cpp
 model/modelparameter.cpp
 model/utilities.cpp
+portfolio/accumulator.cpp
 portfolio/ascot.cpp
 portfolio/asianoption.cpp
+portfolio/autocallable_01.cpp
 portfolio/barrierdata.cpp
 portfolio/barrieroption.cpp
 portfolio/barrieroptionwrapper.cpp
 portfolio/basketdata.cpp
+portfolio/basketoption.cpp
+portfolio/basketvarianceswap.cpp
+portfolio/bestentryoption.cpp
 portfolio/bond.cpp
 portfolio/bondbasket.cpp
 portfolio/bondoption.cpp
@@ -110,11 +115,13 @@ portfolio/bondrepo.cpp
 portfolio/bondtotalreturnswap.cpp
 portfolio/bondutils.cpp
 portfolio/builders/ascot.cpp
+portfolio/builders/asianoption.cpp
 portfolio/builders/bond.cpp
 portfolio/builders/bondoption.cpp
 portfolio/builders/bondrepo.cpp
 portfolio/builders/bondtotalreturnswap.cpp
 portfolio/builders/capfloor.cpp
+portfolio/builders/capflooredaveragebmacouponleg.cpp
 portfolio/builders/capflooredaverageonindexedcouponleg.cpp
 portfolio/builders/capflooredcpileg.cpp
 portfolio/builders/capfloorediborleg.cpp
@@ -123,6 +130,7 @@ portfolio/builders/capflooredovernightindexedcouponleg.cpp
 portfolio/builders/capflooredyoyleg.cpp
 portfolio/builders/cbo.cpp
 portfolio/builders/cdo.cpp
+portfolio/builders/cliquetoption.cpp
 portfolio/builders/cms.cpp
 portfolio/builders/cmsspread.cpp
 portfolio/builders/commodityapo.cpp
@@ -151,7 +159,6 @@ portfolio/builders/equityfuturesoption.cpp
 portfolio/builders/equityoption.cpp
 portfolio/builders/equitytouchoption.cpp
 portfolio/builders/forwardbond.cpp
-portfolio/builders/forwardrateagreement.cpp
 portfolio/builders/fxasianoption.cpp
 portfolio/builders/fxbarrieroption.cpp
 portfolio/builders/fxdigitalbarrieroption.cpp
@@ -166,6 +173,8 @@ portfolio/builders/indexcreditdefaultswapoption.cpp
 portfolio/builders/multilegoption.cpp
 portfolio/builders/prdc.cpp
 portfolio/builders/quantoequityoption.cpp
+portfolio/builders/riskparticipationagreement.cpp
+portfolio/builders/scriptedtrade.cpp
 portfolio/builders/swap.cpp
 portfolio/builders/swaption.cpp
 portfolio/builders/varianceswap.cpp
@@ -186,6 +195,7 @@ portfolio/commodityposition.cpp
 portfolio/commodityspreadoption.cpp
 portfolio/commodityswap.cpp
 portfolio/commodityswaption.cpp
+portfolio/compositeinstrumentwrapper.cpp
 portfolio/compositetrade.cpp
 portfolio/convertiblebond.cpp
 portfolio/convertiblebonddata.cpp
@@ -195,6 +205,7 @@ portfolio/creditdefaultswapdata.cpp
 portfolio/creditdefaultswapoption.cpp
 portfolio/creditlinkedswap.cpp
 portfolio/crosscurrencyswap.cpp
+portfolio/doubledigitaloption.cpp
 portfolio/durationadjustedcmslegbuilder.cpp
 portfolio/durationadjustedcmslegdata.cpp
 portfolio/enginedata.cpp
@@ -214,6 +225,7 @@ portfolio/equityoptionposition.cpp
 portfolio/equityposition.cpp
 portfolio/equityswap.cpp
 portfolio/equitytouchoption.cpp
+portfolio/europeanoptionbarrier.cpp
 portfolio/failedtrade.cpp
 portfolio/fixingdates.cpp
 portfolio/forwardbond.cpp
@@ -230,11 +242,14 @@ portfolio/fxkikobarrieroption.cpp
 portfolio/fxoption.cpp
 portfolio/fxswap.cpp
 portfolio/fxtouchoption.cpp
+portfolio/genericbarrieroption.cpp
 portfolio/indexcreditdefaultswap.cpp
 portfolio/indexcreditdefaultswapdata.cpp
 portfolio/indexcreditdefaultswapoption.cpp
 portfolio/indexing.cpp
 portfolio/inflationswap.cpp
+portfolio/instrumentwrapper.cpp
+portfolio/knockoutswap.cpp
 portfolio/legbuilders.cpp
 portfolio/legdata.cpp
 portfolio/legdatafactory.cpp
@@ -247,14 +262,20 @@ portfolio/optiondata.cpp
 portfolio/optionexercisedata.cpp
 portfolio/optionpaymentdata.cpp
 portfolio/optionwrapper.cpp
+portfolio/performanceoption_01.cpp
 portfolio/portfolio.cpp
 portfolio/premiumdata.cpp
+portfolio/rainbowoption.cpp
 portfolio/rangebound.cpp
 portfolio/referencedata.cpp
 portfolio/referencedatafactory.cpp
+portfolio/riskparticipationagreement.cpp
 portfolio/schedule.cpp
+portfolio/scriptedtrade.cpp
 portfolio/swap.cpp
 portfolio/swaption.cpp
+portfolio/tarf.cpp
+portfolio/tlockdata.cpp
 portfolio/trade.cpp
 portfolio/tradeactions.cpp
 portfolio/tradebarrier.cpp
@@ -268,7 +289,43 @@ portfolio/trswrapper.cpp
 portfolio/underlying.cpp
 portfolio/vanillaoption.cpp
 portfolio/varianceswap.cpp
+portfolio/windowbarrieroption.cpp
+portfolio/worstofbasketswap.cpp
 report/csvreport.cpp
+scripting/ast.cpp
+scripting/astprinter.cpp
+scripting/astresetter.cpp
+scripting/asttoscriptconverter.cpp
+scripting/computationgraphbuilder.cpp
+scripting/context.cpp
+scripting/engines/analyticblackriskparticipationagreementengine.cpp
+scripting/engines/analyticxccyblackriskparticipationagreementengine.cpp
+scripting/engines/cliquetoptionmcscriptengine.cpp
+scripting/engines/numericlgmriskparticipationagreementengine.cpp
+scripting/engines/numericlgmriskparticipationagreementengine_tlock.cpp
+scripting/engines/riskparticipationagreementbaseengine.cpp
+scripting/engines/scriptedinstrumentamccalculator.cpp
+scripting/engines/scriptedinstrumentpricingengine.cpp
+scripting/engines/scriptedinstrumentpricingenginecg.cpp
+scripting/grammar.cpp
+scripting/models/blackscholes.cpp
+scripting/models/blackscholesbase.cpp
+scripting/models/blackscholescg.cpp
+scripting/models/blackscholescgbase.cpp
+scripting/models/fdblackscholesbase.cpp
+scripting/models/gaussiancam.cpp
+scripting/models/localvol.cpp
+scripting/models/modelcgimpl.cpp
+scripting/models/modelimpl.cpp
+scripting/paylog.cpp
+scripting/randomastgenerator.cpp
+scripting/scriptedinstrument.cpp
+scripting/scriptengine.cpp
+scripting/scriptparser.cpp
+scripting/staticanalyser.cpp
+scripting/utilities.cpp
+scripting/value.cpp
+utilities/bondindexbuilder.cpp
 utilities/calendaradjustmentconfig.cpp
 utilities/calendarparser.cpp
 utilities/conventionsbasedfutureexpiry.cpp
@@ -291,6 +348,7 @@ utilities/osutils.cpp
 utilities/parsers.cpp
 utilities/progressbar.cpp
 utilities/strike.cpp
+utilities/timeperiod.cpp
 utilities/to_string.cpp
 utilities/wildcard.cpp
 utilities/xmlutils.cpp)
@@ -402,12 +460,17 @@ model/modeldata.hpp
 model/modelparameter.hpp
 model/structuredmodelerror.hpp
 model/utilities.hpp
+portfolio/accumulator.hpp
 portfolio/ascot.hpp
 portfolio/asianoption.hpp
+portfolio/autocallable_01.hpp
 portfolio/barrierdata.hpp
 portfolio/barrieroption.hpp
 portfolio/barrieroptionwrapper.hpp
 portfolio/basketdata.hpp
+portfolio/basketoption.hpp
+portfolio/basketvarianceswap.hpp
+portfolio/bestentryoption.hpp
 portfolio/bond.hpp
 portfolio/bondbasket.hpp
 portfolio/bondoption.hpp
@@ -423,6 +486,7 @@ portfolio/builders/bondrepo.hpp
 portfolio/builders/bondtotalreturnswap.hpp
 portfolio/builders/cachingenginebuilder.hpp
 portfolio/builders/capfloor.hpp
+portfolio/builders/capflooredaveragebmacouponleg.hpp
 portfolio/builders/capflooredaverageonindexedcouponleg.hpp
 portfolio/builders/capflooredcpileg.hpp
 portfolio/builders/capfloorediborleg.hpp
@@ -460,7 +524,6 @@ portfolio/builders/equityfuturesoption.hpp
 portfolio/builders/equityoption.hpp
 portfolio/builders/equitytouchoption.hpp
 portfolio/builders/forwardbond.hpp
-portfolio/builders/forwardrateagreement.hpp
 portfolio/builders/fxasianoption.hpp
 portfolio/builders/fxbarrieroption.hpp
 portfolio/builders/fxdigitalbarrieroption.hpp
@@ -476,6 +539,8 @@ portfolio/builders/multilegoption.hpp
 portfolio/builders/prdc.hpp
 portfolio/builders/quantoequityoption.hpp
 portfolio/builders/quantovanillaoption.hpp
+portfolio/builders/riskparticipationagreement.hpp
+portfolio/builders/scriptedtrade.hpp
 portfolio/builders/swap.hpp
 portfolio/builders/swaption.hpp
 portfolio/builders/vanillaoption.hpp
@@ -507,6 +572,7 @@ portfolio/creditdefaultswapdata.hpp
 portfolio/creditdefaultswapoption.hpp
 portfolio/creditlinkedswap.hpp
 portfolio/crosscurrencyswap.hpp
+portfolio/doubledigitaloption.hpp
 portfolio/durationadjustedcmslegbuilder.hpp
 portfolio/durationadjustedcmslegdata.hpp
 portfolio/enginedata.hpp
@@ -527,6 +593,7 @@ portfolio/equityoptionposition.hpp
 portfolio/equityposition.hpp
 portfolio/equityswap.hpp
 portfolio/equitytouchoption.hpp
+portfolio/europeanoptionbarrier.hpp
 portfolio/failedtrade.hpp
 portfolio/fixingdates.hpp
 portfolio/forwardbond.hpp
@@ -544,12 +611,14 @@ portfolio/fxkikobarrieroption.hpp
 portfolio/fxoption.hpp
 portfolio/fxswap.hpp
 portfolio/fxtouchoption.hpp
+portfolio/genericbarrieroption.hpp
 portfolio/indexcreditdefaultswap.hpp
 portfolio/indexcreditdefaultswapdata.hpp
 portfolio/indexcreditdefaultswapoption.hpp
 portfolio/indexing.hpp
 portfolio/inflationswap.hpp
 portfolio/instrumentwrapper.hpp
+portfolio/knockoutswap.hpp
 portfolio/legbuilders.hpp
 portfolio/legdata.hpp
 portfolio/legdatafactory.hpp
@@ -562,12 +631,16 @@ portfolio/optiondata.hpp
 portfolio/optionexercisedata.hpp
 portfolio/optionpaymentdata.hpp
 portfolio/optionwrapper.hpp
+portfolio/performanceoption_01.hpp
 portfolio/portfolio.hpp
 portfolio/premiumdata.hpp
+portfolio/rainbowoption.hpp
 portfolio/rangebound.hpp
 portfolio/referencedata.hpp
 portfolio/referencedatafactory.hpp
+portfolio/riskparticipationagreement.hpp
 portfolio/schedule.hpp
+portfolio/scriptedtrade.hpp
 portfolio/simmcreditqualifiermapping.hpp
 portfolio/structuredconfigurationerror.hpp
 portfolio/structuredconfigurationwarning.hpp
@@ -575,6 +648,8 @@ portfolio/structuredtradeerror.hpp
 portfolio/structuredtradewarning.hpp
 portfolio/swap.hpp
 portfolio/swaption.hpp
+portfolio/tarf.hpp
+portfolio/tlockdata.hpp
 portfolio/trade.hpp
 portfolio/tradeactions.hpp
 portfolio/tradebarrier.hpp
@@ -589,9 +664,50 @@ portfolio/types.hpp
 portfolio/underlying.hpp
 portfolio/vanillaoption.hpp
 portfolio/varianceswap.hpp
+portfolio/windowbarrieroption.hpp
+portfolio/worstofbasketswap.hpp
 report/csvreport.hpp
 report/inmemoryreport.hpp
 report/report.hpp
+scripting/ast.hpp
+scripting/astprinter.hpp
+scripting/astresetter.hpp
+scripting/asttoscriptconverter.hpp
+scripting/computationgraphbuilder.hpp
+scripting/context.hpp
+scripting/engines/analyticblackriskparticipationagreementengine.hpp
+scripting/engines/analyticxccyblackriskparticipationagreementengine.hpp
+scripting/engines/cliquetoptionmcscriptengine.hpp
+scripting/engines/numericlgmriskparticipationagreementengine.hpp
+scripting/engines/numericlgmriskparticipationagreementengine_tlock.hpp
+scripting/engines/riskparticipationagreementbaseengine.hpp
+scripting/engines/scriptedinstrumentamccalculator.hpp
+scripting/engines/scriptedinstrumentpricingengine.hpp
+scripting/engines/scriptedinstrumentpricingenginecg.hpp
+scripting/grammar.hpp
+scripting/models/amcmodel.hpp
+scripting/models/blackscholes.hpp
+scripting/models/blackscholesbase.hpp
+scripting/models/blackscholescg.hpp
+scripting/models/blackscholescgbase.hpp
+scripting/models/dummymodel.hpp
+scripting/models/fdblackscholesbase.hpp
+scripting/models/gaussiancam.hpp
+scripting/models/localvol.hpp
+scripting/models/model.hpp
+scripting/models/modelcg.hpp
+scripting/models/modelcgimpl.hpp
+scripting/models/modelimpl.hpp
+scripting/paylog.hpp
+scripting/randomastgenerator.hpp
+scripting/safestack.hpp
+scripting/scriptedinstrument.hpp
+scripting/scriptengine.hpp
+scripting/scriptparser.hpp
+scripting/staticanalyser.hpp
+scripting/utilities.hpp
+scripting/value.hpp
+utilities/bondindexbuilder.hpp
 utilities/calendaradjustmentconfig.hpp
 utilities/calendarparser.hpp
 utilities/conventionsbasedfutureexpiry.hpp
@@ -630,6 +746,14 @@ target_link_libraries(${ORED_LIB_NAME} ${QLE_LIB_NAME})
 target_link_libraries(${ORED_LIB_NAME} ${QL_LIB_NAME})
 target_link_libraries(${ORED_LIB_NAME} ${Boost_LIBRARIES})
 
+
+if (QL_USE_PCH)
+target_precompile_headers(${ORED_LIB_NAME}
+  PUBLIC
+    <ored/portfolio/enginefactory.hpp>
+    <ored/utilities/log.hpp>
+    <ored/utilities/parsers.hpp>)
+endif()
 
 install(DIRECTORY . DESTINATION include/ored
         FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h")

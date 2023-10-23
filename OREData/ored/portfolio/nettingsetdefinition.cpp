@@ -21,6 +21,7 @@
 #include <ored/utilities/parsers.hpp>
 #include <ored/utilities/to_string.hpp>
 #include <ql/utilities/dataparsers.hpp>
+#include <utility>
 
 namespace ore {
 namespace data {

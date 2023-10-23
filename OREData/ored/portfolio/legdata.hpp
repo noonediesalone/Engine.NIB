@@ -24,9 +24,11 @@
 #pragma once
 
 #include <boost/make_shared.hpp>
+#include <ored/portfolio/fixingdates.hpp>
 #include <ored/portfolio/indexing.hpp>
 #include <ored/portfolio/legdatafactory.hpp>
 #include <ored/portfolio/schedule.hpp>
+#include <ored/portfolio/simmcreditqualifiermapping.hpp>
 #include <ored/portfolio/underlying.hpp>
 #include <ored/utilities/indexparser.hpp>
 #include <ored/utilities/parsers.hpp>
@@ -50,6 +52,7 @@ using std::string;
 class EngineFactory;
 class Market;
 class RequiredFixings;
+class ReferenceDataManager;
 
 //! Serializable Additional Leg Data
 /*!
@@ -189,14 +192,14 @@ public:
                     bool nakedOption = false, bool hasSubPeriods = false, bool includeSpread = false,
                     QuantLib::Period lookback = 0 * Days, const Size rateCutoff = Null<Size>(),
                     bool localCapFloor = false, const boost::optional<Period>& lastRecentPeriod = boost::none,
-                    const std::string& lastRecentPeriodCalendar = std::string(), bool telescopicValueDates = false)
+                    const std::string& lastRecentPeriodCalendar = std::string(), bool telescopicValueDates = false,
+                    const std::map<QuantLib::Date, double>& historicalFixings = {})
         : LegAdditionalData("Floating"), index_(ore::data::internalIndexName(index)), fixingDays_(fixingDays),
           lookback_(lookback), rateCutoff_(rateCutoff), isInArrears_(isInArrears), isAveraged_(isAveraged),
           hasSubPeriods_(hasSubPeriods), includeSpread_(includeSpread), spreads_(spreads), spreadDates_(spreadDates),
           caps_(caps), capDates_(capDates), floors_(floors), floorDates_(floorDates), gearings_(gearings),
-          gearingDates_(gearingDates), nakedOption_(nakedOption), localCapFloor_(localCapFloor),
-          lastRecentPeriod_(lastRecentPeriod), lastRecentPeriodCalendar_(lastRecentPeriodCalendar),
-          telescopicValueDates_(telescopicValueDates) {
+          gearingDates_(gearingDates), nakedOption_(nakedOption), localCapFloor_(localCapFloor),          lastRecentPeriod_(lastRecentPeriod), lastRecentPeriodCalendar_(lastRecentPeriodCalendar), telescopicValueDates_(telescopicValueDates),
+          historicalFixings_(historicalFixings) {
         indices_.insert(index_);
     }
 
@@ -225,6 +228,7 @@ public:
     bool telescopicValueDates() const { return telescopicValueDates_; }
     ScheduleData fixingSchedule() const { return fixingSchedule_; }
     ScheduleData resetSchedule() const { return resetSchedule_; }
+    const std::map<QuantLib::Date, double>& historicalFixings() const { return historicalFixings_; }
     //@}
 
     //! \name Modifiers
@@ -267,6 +271,7 @@ private:
     bool telescopicValueDates_ = false;
     ScheduleData fixingSchedule_;
     ScheduleData resetSchedule_;
+    std::map<QuantLib::Date, double> historicalFixings_;
 };
 
 //! Serializable CPI Leg Data
@@ -969,6 +974,7 @@ public:
     string& paymentConvention() { return paymentConvention_; }
     std::vector<std::string>& paymentDates() { return paymentDates_; }
     string& lastPeriodDayCounter() { return lastPeriodDayCounter_; }
+    bool& strictNotionalDates() { return strictNotionalDates_; }
     //@}
 
     virtual boost::shared_ptr<LegAdditionalData> initialiseConcreteLegData(const string&);
@@ -1020,6 +1026,7 @@ Leg makeOISLeg(const LegData& data, const boost::shared_ptr<OvernightIndex>& ind
                const boost::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
                const QuantLib::Date& openEndDateReplacement = Null<Date>());
 Leg makeBMALeg(const LegData& data, const boost::shared_ptr<QuantExt::BMAIndexWrapper>& indexWrapper,
+               const boost::shared_ptr<EngineFactory>& engineFactory,
                const QuantLib::Date& openEndDateReplacement = Null<Date>());
 Leg makeSimpleLeg(const LegData& data);
 Leg makeNotionalLeg(const Leg& refLeg, const bool initNomFlow, const bool finalNomFlow, const bool amortNomFlow,
@@ -1054,6 +1061,11 @@ Leg makeEquityLeg(const LegData& data, const boost::shared_ptr<QuantExt::EquityI
 Real currentNotional(const Leg& leg);
 Real originalNotional(const Leg& leg);
 
+std::string getCmbLegCreditRiskCurrency(const CMBLegData& ld, const boost::shared_ptr<ReferenceDataManager>& refData);
+
+std::pair<std::string, SimmCreditQualifierMapping>
+getCmbLegCreditQualifierMapping(const CMBLegData& ld, const boost::shared_ptr<ReferenceDataManager>& refData,
+                                const std::string& tradeId, const std::string& tradeType);
 //@}
 
 // Build a full vector of values from the given node.
@@ -1118,6 +1130,17 @@ vector<T> buildScheduledVector(const vector<T>& values, const vector<string>& da
     QL_REQUIRE(values.size() == dates.size(), "Value / Date size mismatch in buildScheduledVector."
                                                   << "Value:" << values.size() << ", Dates:" << dates.size());
 
+    // parse the dates
+    std::vector<QuantLib::Date> parsedDates;
+    std::transform(dates.begin(), dates.end(), std::back_inserter(parsedDates), &parseDate);
+
+    // adjust the dates using the schedule calendar and roll convention
+    if (!schedule.calendar().empty()) {
+        for (auto& d : parsedDates)
+            if(d != Date())
+                d = schedule.calendar().adjust(d, schedule.businessDayConvention());
+    }
+
     // Need to use schedule logic
     // Length of data will be 1 less than schedule
     //
@@ -1132,12 +1155,12 @@ vector<T> buildScheduledVector(const vector<T>& values, const vector<string>& da
     // If the second one has a date, all the rest must have, and we process
     // If the second one does not have a date, none of them must have one
     // and we return the vector unaffected.
-    QL_REQUIRE(dates[0] == "", "Invalid date " << dates[0] << " for first node");
-    if (dates[1] == "") {
+    QL_REQUIRE(parsedDates.front() == Date(), "Invalid date " << dates.front() << " for first node");
+    if (parsedDates[1] == Date()) {
         // They must all be empty and then we return values
         for (Size i = 2; i < dates.size(); i++) {
-            QL_REQUIRE(dates[i] == "", "Invalid date " << dates[i] << " for node " << i
-                                                       << ". Cannot mix dates and non-dates attributes");
+            QL_REQUIRE(parsedDates[i] == Date(), "Invalid date " << dates[i] << " for node " << i
+                                                                 << ". Cannot mix dates and non-dates attributes");
         }
         return values;
     }
@@ -1145,15 +1168,15 @@ vector<T> buildScheduledVector(const vector<T>& values, const vector<string>& da
     // We have nodes with date attributes now
     Size len = schedule.size() - 1;
     vector<T> data(len);
-    Size j = 0, max_j = dates.size() - 1; // j is the index of date/value vector. 0 to max_j
-    Date d = parseDate(dates[j + 1]);     // The first start date
-    for (Size i = 0; i < len; i++) {      // loop over data vector and populate it.
+    Size j = 0, max_j = parsedDates.size() - 1; // j is the index of date/value vector. 0 to max_j
+    Date d = parsedDates[j + 1];                // The first start date
+    for (Size i = 0; i < len; i++) {            // loop over data vector and populate it.
         // If j == max_j we just fall through and take the final value
         while (schedule[i] >= d && j < max_j) {
             j++;
             if (j < max_j) {
-                QL_REQUIRE(dates[j + 1] != "", "Cannot have empty date attribute for node " << j + 1);
-                d = parseDate(dates[j + 1]);
+                QL_REQUIRE(parsedDates[j + 1] != Date(), "Cannot have empty date attribute for node " << j + 1);
+                d = parsedDates[j + 1];
             }
         }
         data[i] = values[j];
@@ -1199,14 +1222,6 @@ typename vector<T>::const_iterator checkAllValuesAppearInScheduledVector(const v
     }
     return i;
 }
-
-// build a Bond Index needed by legbuilders (populates bond data from bond reference data if required)
-class BondData;
-boost::shared_ptr<QuantExt::BondIndex> buildBondIndex(const BondData& securityData, const bool dirty,
-                                                      const bool relative, const Calendar& fixingCalendar,
-                                                      const bool conditionalOnSurvival,
-                                                      const boost::shared_ptr<EngineFactory>& engineFactory,
-                                                      RequiredFixings& requiredFixings);
 
 // join a vector of legs to a single leg, check if the legs have adjacent periods
 Leg joinLegs(const std::vector<Leg>& legs);

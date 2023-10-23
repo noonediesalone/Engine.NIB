@@ -1,6 +1,19 @@
 /*
  Copyright (C) 2023 Quaternion Risk Management Ltd.
  All rights reserved.
+
+ This file is part of ORE, a free-software/open-source library
+ for transparent pricing and risk analysis - http://opensourcerisk.org
+
+ ORE is free software: you can redistribute it and/or modify it
+ under the terms of the Modified BSD License.  You should have received a
+ copy of the license along with this program.
+ The license is also available online at <http://opensourcerisk.org>
+
+ This program is distributed on the basis that it will form a useful
+ contribution to risk analytics and model standardisation, but WITHOUT
+ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ FITNESS FOR A PARTICULAR PURPOSE. See the license for more details.
 */
 
 /*! \file orea/simm/simmconfigurationisdav2_6.hpp
@@ -16,13 +29,13 @@ namespace analytics {
 
 /*! Class giving the SIMM configuration as outlined in the document
     <em>ISDA SIMM Methodology, version 2.6.
-        Effective Date: 3 December 2023.</em>
+        Effective Date: December 2, 2023.</em>
 */
-class SimmConfiguration_ISDA_V2_6: public SimmConfigurationBase {
+class SimmConfiguration_ISDA_V2_6 : public SimmConfigurationBase {
 public:
     SimmConfiguration_ISDA_V2_6(const boost::shared_ptr<SimmBucketMapper>& simmBucketMapper,
                                 const QuantLib::Size& mporDays = 10,
-                                const std::string& name = "SIMM ISDA 2.6 (3 December 2023)",
+                                const std::string& name = "SIMM ISDA 2.6 (<INSERT PUBLISHING DATE HERE>)",
                                 const std::string version = "2.6");
 
     //! Return the SIMM <em>Label2</em> value for the given interest rate index
