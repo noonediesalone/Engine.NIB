@@ -88,8 +88,8 @@
 #include <qle/indexes/ibor/nzdbkbm.hpp>
 #include <qle/indexes/ibor/phpphiref.hpp>
 #include <qle/indexes/ibor/plnpolonia.hpp>
-#include <qle/indexes/ibor/primeindex.hpp>#include <qle/indexes/ibor/reibor.hpp>
-#include <qle/indexes/ibor/rubmosprime.hpp>
+#include <qle/indexes/ibor/primeindex.hpp>
+#include <qle/indexes/ibor/reibor.hpp>
 #include <qle/indexes/ibor/rubkeyrate.hpp>
 #include <qle/indexes/ibor/saibor.hpp>
 #include <qle/indexes/ibor/seksior.hpp>
