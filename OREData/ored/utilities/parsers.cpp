@@ -149,9 +149,7 @@ bool parseBool(const string& s) {
     }
 }
 
-Calendar parseCalendar(const string& s) {
-    return CalendarParser::instance().parseCalendar(s);
-}
+Calendar parseCalendar(const string& s) { return CalendarParser::instance().parseCalendar(s); }
 
 bool isOnePeriod(const string& s) {
     if (s.empty())
@@ -279,7 +277,7 @@ DayCounter parseDayCounter(const string& s) {
     auto it = m.find(s);
     if (it != m.end()) {
         return it->second;
-        
+
     } else {
         QL_FAIL("DayCounter \"" << s << "\" not recognized");
     }
@@ -372,10 +370,8 @@ Compounding parseCompounding(const string& s) {
 }
 
 QuantLib::Bond::Price::Type parseBondPriceType(const string& s) {
-    static map<string, QuantLib::Bond::Price::Type> m = {
-        {"Clean", QuantLib::Bond::Price::Type::Clean},
-        {"Dirty", QuantLib::Bond::Price::Type::Dirty}
-    };
+    static map<string, QuantLib::Bond::Price::Type> m = {{"Clean", QuantLib::Bond::Price::Type::Clean},
+                                                         {"Dirty", QuantLib::Bond::Price::Type::Dirty}};
 
     auto it = m.find(s);
     if (it != m.end()) {
@@ -609,7 +605,7 @@ Month parseMonth(const string& s) {
     }
 }
 
-PaymentLag parsePaymentLag(const string& s) {   
+PaymentLag parsePaymentLag(const string& s) {
     Period p;
     Natural n;
     if (tryParse<Period>(s, p, parsePeriod))
@@ -686,9 +682,10 @@ FdmSchemeDesc parseFdmSchemeDesc(const std::string& s) {
 }
 
 AssetClass parseAssetClass(const std::string& s) {
-    static map<string, AssetClass> assetClasses = {
-        {"EQ", AssetClass::EQ},   {"FX", AssetClass::FX}, {"COM", AssetClass::COM},  {"IR", AssetClass::IR},
-        {"INF", AssetClass::INF}, {"CR", AssetClass::CR}, {"BOND", AssetClass::BOND}, {"BOND_INDEX", AssetClass::BOND_INDEX}};
+    static map<string, AssetClass> assetClasses = {{"EQ", AssetClass::EQ},     {"FX", AssetClass::FX},
+                                                   {"COM", AssetClass::COM},   {"IR", AssetClass::IR},
+                                                   {"INF", AssetClass::INF},   {"CR", AssetClass::CR},
+                                                   {"BOND", AssetClass::BOND}, {"BOND_INDEX", AssetClass::BOND_INDEX}};
     auto it = assetClasses.find(s);
     if (it != assetClasses.end()) {
         return it->second;
@@ -848,7 +845,7 @@ pair<string, string> parseBoostAny(const boost::any& anyType, Size precision) {
     } else if (anyType.type() == typeid(double)) {
         resultType = "double";
         double r = boost::any_cast<double>(anyType);
-        if(r != Null<Real>())
+        if (r != Null<Real>())
             oss << std::fixed << std::setprecision(precision) << r;
     } else if (anyType.type() == typeid(std::string)) {
         resultType = "string";
@@ -1046,7 +1043,7 @@ DoubleBarrier::Type parseDoubleBarrierType(const std::string& s) {
         QL_FAIL("DoubleBarrier type \"" << s << "\" not recognized");
     }
 }
-  
+
 ostream& operator<<(ostream& os, InflationSwapConvention::PublicationRoll pr) {
     using IPR = InflationSwapConvention::PublicationRoll;
     if (pr == IPR::None) {
@@ -1290,7 +1287,7 @@ string fxDominance(const string& s1, const string& s2) {
                                        // JPY at the end (of majors)
                                        "JPY",
                                        // JPYIDR and JPYKRW - who knew!
-                                       "IDR", "KRW" };
+                                       "IDR", "KRW"};
 
     auto p1 = std::find(dominance.begin(), dominance.end(), s1);
     auto p2 = std::find(dominance.begin(), dominance.end(), s2);
@@ -1385,6 +1382,16 @@ QuantLib::Pillar::Choice parsePillarChoice(const std::string& s) {
         return QuantLib::Pillar::CustomDate;
     else {
         QL_FAIL("PillarChoice '" << s << "' not recognized, expected MaturityDate, LastRelevantDate, CustomDate");
+    }
+}
+
+QuantExt::McMultiLegBaseEngine::RegressorModel parseRegressorModel(const std::string& s) {
+    if (s == "Simple")
+        return McMultiLegBaseEngine::RegressorModel::Simple;
+    else if (s == "LaggedFX")
+        return McMultiLegBaseEngine::RegressorModel::LaggedFX;
+    else {
+        QL_FAIL("RegressorModel '" << s << "' not recognized, expected Simple, LaggedFX");
     }
 }
 
