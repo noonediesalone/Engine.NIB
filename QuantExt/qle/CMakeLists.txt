@@ -498,7 +498,6 @@ indexes/ibor/ambor.hpp
 indexes/ibor/ameribor.hpp
 indexes/ibor/boebaserate.hpp
 indexes/ibor/brlcdi.hpp
-indexes/ibor/brldi.hpp
 indexes/ibor/chfsaron.hpp
 indexes/ibor/chftois.hpp
 indexes/ibor/clpcamara.hpp
@@ -512,7 +511,6 @@ indexes/ibor/demlibor.hpp
 indexes/ibor/dkkcibor.hpp
 indexes/ibor/dkkcita.hpp
 indexes/ibor/dkkois.hpp
-indexes/ibor/govar.hpp
 indexes/ibor/hkdhibor.hpp
 indexes/ibor/hkdhonia.hpp
 indexes/ibor/hufbubor.hpp
@@ -532,7 +530,6 @@ indexes/ibor/nzdbkbm.hpp
 indexes/ibor/phpphiref.hpp
 indexes/ibor/plnpolonia.hpp
 indexes/ibor/primeindex.hpp
-indexes/ibor/reibor.hpp
 indexes/ibor/rubkeyrate.hpp
 indexes/ibor/saibor.hpp
 indexes/ibor/seksior.hpp
