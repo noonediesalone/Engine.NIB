@@ -158,7 +158,7 @@ DiscountingRiskyBondEngine::calculateNpv(const Date& npvDate, const Date& settle
         }
 
         boost::shared_ptr<Coupon> coupon = boost::dynamic_pointer_cast<Coupon>(cf);
-        if (coupon) {
+        if (coupon && coupon->accrualEndDate() > npvDate) {
             numCoupons++;
             Date startDate = coupon->accrualStartDate();
             Date endDate = coupon->accrualEndDate();
