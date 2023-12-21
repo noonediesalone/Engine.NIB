@@ -55,7 +55,6 @@
 #include <qle/indexes/ibor/ameribor.hpp>
 #include <qle/indexes/ibor/boebaserate.hpp>
 #include <qle/indexes/ibor/brlcdi.hpp>
-#include <qle/indexes/ibor/brldi.hpp>
 #include <qle/indexes/ibor/chfsaron.hpp>
 #include <qle/indexes/ibor/chftois.hpp>
 #include <qle/indexes/ibor/clpcamara.hpp>
@@ -69,7 +68,6 @@
 #include <qle/indexes/ibor/dkkcibor.hpp>
 #include <qle/indexes/ibor/dkkcita.hpp>
 #include <qle/indexes/ibor/dkkois.hpp>
-#include <qle/indexes/ibor/govar.hpp>
 #include <qle/indexes/ibor/hkdhibor.hpp>
 #include <qle/indexes/ibor/hkdhonia.hpp>
 #include <qle/indexes/ibor/hufbubor.hpp>
@@ -89,7 +87,6 @@
 #include <qle/indexes/ibor/phpphiref.hpp>
 #include <qle/indexes/ibor/plnpolonia.hpp>
 #include <qle/indexes/ibor/primeindex.hpp>
-#include <qle/indexes/ibor/reibor.hpp>
 #include <qle/indexes/ibor/rubkeyrate.hpp>
 #include <qle/indexes/ibor/saibor.hpp>
 #include <qle/indexes/ibor/seksior.hpp>
@@ -389,9 +386,6 @@ boost::shared_ptr<IborIndex> parseIborIndex(const string& s, string& tenor, cons
         {"THB-THBFIX", boost::make_shared<IborIndexParserWithPeriod<THBFIX>>()},
         {"PHP-PHIREF", boost::make_shared<IborIndexParserWithPeriod<PHPPhiref>>()},
         {"RON-ROBOR", boost::make_shared<IborIndexParserWithPeriod<Robor>>()},
-        {"ARS-GOVAR", boost::make_shared<IborIndexParserWithPeriod<Govar>>()},
-        {"BRL-DI", boost::make_shared<IborIndexParserWithPeriod<BRLDi>>()},
-        {"ISK-REIBOR", boost::make_shared<IborIndexParserWithPeriod<Reibor>>()},
         {"DEM-LIBOR", boost::make_shared<IborIndexParserWithPeriod<DEMLibor>>()},
         {"CNY-REPOFIX", boost::make_shared<IborIndexParserWithPeriod<CNYRepoFix>>()},
         {"USD-SOFR", boost::make_shared<IborIndexParserWithPeriod<QuantExt::SofrTerm>>()},
