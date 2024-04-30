@@ -1668,7 +1668,7 @@ ParSensitivityAnalysis::makeCrossCcyBasisSwap(const boost::shared_ptr<Market>& m
     today = conv->settlementCalendar().adjust(today);
     
     Date start = conv->settlementCalendar().advance(today, conv->settlementDays() * Days, conv->rollConvention());
-    Date end = conv->settlementCalendar().advance(start, term, conv->rollConvention());
+    Date end = start + term;
     Schedule baseSchedule = MakeSchedule()
                                 .from(start)
                                 .to(end)
