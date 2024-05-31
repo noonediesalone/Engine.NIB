@@ -101,9 +101,9 @@
 
 \begin{document}
 
-\title{ORE+ Trade Scripting Module}
+\title{ORE Scripted Trade Module}
 \author{Quaternion Risk Management}
-\date{22 June 2023}
+\date{12 February 2024}
 \maketitle
 
 \newpage
@@ -135,7 +135,8 @@
   01-07-2021 & Peter Caspers & add case $d1>d2$ for ABOVEPROB, BELOWPROB \\
   13-09-2021 & Nathaniel Volfango & update Index section and add note on payment currency \\
   11-02-2022 & Peter Caspers & extend FWDCOMP, add FWDAVG function (breaking change) \\
-  22-06-2023 & Peter Caspers & add config flags for external devices
+  22-06-2023 & Peter Caspers & add config flags for external devices \\
+  12-02-2024 & Peter Caspers & additions for FD GaussianCam model
  \\ \hline
 \end{supertabular}
 \end{center}
@@ -209,7 +210,7 @@ This document describes the ORE+ trade scripting module.
 \subsection{Compact Trade XML}\label{compactXml}
 \input{docs/compacttradexml.tex}
 
-\subsection{A comment on the Payment Currency in Scripted Trades}\label{sss:payccy_st}
+\subsection{Payment Currency}\label{sss:payccy_st}
 \input{docs/noteonpayccy.tex}
 
 \subsection{Convenience Trade Wrappers}

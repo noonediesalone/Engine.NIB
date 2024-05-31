@@ -22,10 +22,11 @@
 #include <ql/math/array.hpp>
 #include <ql/math/comparison.hpp>
 #include <ql/math/matrix.hpp>
+#include <ql/methods/montecarlo/lsmbasissystem.hpp>
 #include <ql/patterns/singleton.hpp>
 #include <ql/types.hpp>
 
-#include <boost/function.hpp>
+#include <ql/functional.hpp>
 #include <boost/timer/timer.hpp>
 
 #include <initializer_list>
@@ -44,6 +45,15 @@ struct RandomVariableStats : public QuantLib::Singleton<RandomVariableStats> {
         calc_timer.start();
         calc_timer.stop();
     }
+
+    void reset() {
+      enabled = false;
+      data_ops = 0;
+      calc_ops = 0;
+      data_timer.stop();
+      calc_timer.stop();
+    }
+
     bool enabled = false;
     std::size_t data_ops = 0;
     std::size_t calc_ops = 0;
@@ -151,8 +161,10 @@ struct RandomVariable {
     explicit RandomVariable(const Size n, const Real value = 0.0, const Real time = Null<Real>());
     explicit RandomVariable(const Filter& f, const Real valueTrue = 1.0, const Real valueFalse = 0.0,
                             const Real time = Null<Real>());
+    explicit RandomVariable(const Size n, const Real* const data, const Real time = Null<Real>());
+    explicit RandomVariable(const std::vector<double>& data, const Real time = Null<Real>());
     // interop with ql classes
-    explicit RandomVariable(const QuantLib::Array& array, const Real time = Null<Real>());
+    explicit RandomVariable(const QuantLib::Array& data, const Real time = Null<Real>());
     void copyToMatrixCol(QuantLib::Matrix&, const Size j) const;
     void copyToArray(QuantLib::Array& array) const;
     // modifiers
@@ -203,8 +215,10 @@ struct RandomVariable {
     friend RandomVariable applyInverseFilter(RandomVariable, const Filter&);
     friend RandomVariable conditionalResult(const Filter&, RandomVariable, const RandomVariable&);
     friend RandomVariable indicatorEq(RandomVariable, const RandomVariable&, const Real trueVal, const Real falseVal);
-    friend RandomVariable indicatorGt(RandomVariable, const RandomVariable&, const Real trueVal, const Real falseVal);
-    friend RandomVariable indicatorGeq(RandomVariable, const RandomVariable&, const Real trueVal, const Real falseVal);
+    friend RandomVariable indicatorGt(RandomVariable, const RandomVariable&, const Real trueVal, const Real falseVal,
+                                      const Real eps);
+    friend RandomVariable indicatorGeq(RandomVariable, const RandomVariable&, const Real trueVal, const Real falseVal,
+                                       const Real eps);
 
     void expand();
     // pointer to raw data, this is null for deterministic variables
@@ -256,8 +270,10 @@ RandomVariable cos(RandomVariable);
 RandomVariable normalCdf(RandomVariable);
 RandomVariable normalPdf(RandomVariable);
 RandomVariable indicatorEq(RandomVariable, const RandomVariable&, const Real trueVal = 1.0, const Real falseVal = 0.0);
-RandomVariable indicatorGt(RandomVariable, const RandomVariable&, const Real trueVal = 1.0, const Real falseVal = 0.0);
-RandomVariable indicatorGeq(RandomVariable, const RandomVariable&, const Real trueVal = 1.0, const Real falseVal = 0.0);
+RandomVariable indicatorGt(RandomVariable, const RandomVariable&, const Real trueVal = 1.0, const Real falseVal = 0.0,
+                           const Real eps = 0.0);
+RandomVariable indicatorGeq(RandomVariable, const RandomVariable&, const Real trueVal = 1.0, const Real falseVal = 0.0,
+                            const Real eps = 0.0);
 
 Filter close_enough(const RandomVariable&, const RandomVariable&);
 bool close_enough_all(const RandomVariable&, const RandomVariable&);
@@ -271,10 +287,23 @@ RandomVariable applyFilter(RandomVariable, const Filter&);
 // set all entries to 0 where filter = true, leave the others unchanged
 RandomVariable applyInverseFilter(RandomVariable, const Filter&);
 
+/* Perform a factor reduction: We keep m factors so that "1 - varianceCutoff" of the total variance of the n regressor
+   variables is explained by the m factors. The return value is m x n transforming from original coordinates to new
+   coordinates. This can be a useful preprocessing step for linear regression to reduce the dimensionality or also to
+   handle collinear regressors. */
+Matrix pcaCoordinateTransform(const std::vector<const RandomVariable*>& regressor, const Real varianceCutoff = 1E-5);
+
+/* Apply a coordinate transform */
+std::vector<RandomVariable> applyCoordinateTransform(const std::vector<const RandomVariable*>& regressor,
+                                                     const Matrix& transform);
+
+/* Create vector of pointers to rvs from vector of rvs */
+std::vector<const RandomVariable*> vec2vecptr(const std::vector<RandomVariable>& values);
+
 // compute regression coefficients
-enum class RandomVariableRegressionMethod { QR, SVI };
+enum class RandomVariableRegressionMethod { QR, SVD };
 Array regressionCoefficients(
-    RandomVariable r, const std::vector<const RandomVariable*>& regressor,
+    RandomVariable r, std::vector<const RandomVariable*> regressor,
     const std::vector<std::function<RandomVariable(const std::vector<const RandomVariable*>&)>>& basisFn,
     const Filter& filter = Filter(), const RandomVariableRegressionMethod = RandomVariableRegressionMethod::QR,
     const std::string& debugLabel = std::string());
@@ -297,12 +326,20 @@ RandomVariable expectation(const RandomVariable& r);
 // time zero variance
 RandomVariable variance(const RandomVariable& r);
 
+// time zero covariance
+RandomVariable covariance(const RandomVariable& r, const RandomVariable& s);
+
 // black formula
 RandomVariable black(const RandomVariable& omega, const RandomVariable& t, const RandomVariable& strike,
                      const RandomVariable& forward, const RandomVariable& impliedVol);
 
 // derivative of indicator function 1_{x>0}
 RandomVariable indicatorDerivative(const RandomVariable& x, const double eps);
+
+// is the given random variable deterministic and zero?
+inline bool isDeterministicAndZero(const RandomVariable& x) {
+    return x.deterministic() && QuantLib::close_enough(x[0], 0.0);
+}
 
 // inline element-wise access operators
 
@@ -334,5 +371,11 @@ inline Real RandomVariable::at(const Size i) const {
 }
 
 inline double* RandomVariable::data() { return data_; }
+
+/*! helper function that returns a LSM basis system with size restriction: the order is reduced until
+  the size of the basis system is not greater than the given bound (if this is not null) or the order is 1 */
+std::vector<std::function<RandomVariable(const std::vector<const RandomVariable*>&)>>
+multiPathBasisSystem(Size dim, Size order, QuantLib::LsmBasisSystem::PolynomialType type,
+                     Size basisSystemSizeBound = Null<Size>());
 
 } // namespace QuantExt

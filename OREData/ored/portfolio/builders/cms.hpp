@@ -50,7 +50,7 @@ public:
     AnalyticHaganCmsCouponPricerBuilder() : CmsCouponPricerBuilder("Hagan", "Analytic") {}
 
 protected:
-    virtual boost::shared_ptr<FloatingRateCouponPricer> engineImpl(const string& key) override;
+    virtual QuantLib::ext::shared_ptr<FloatingRateCouponPricer> engineImpl(const string& key) override;
 };
 
 class NumericalHaganCmsCouponPricerBuilder : public CmsCouponPricerBuilder {
@@ -58,7 +58,7 @@ public:
     NumericalHaganCmsCouponPricerBuilder() : CmsCouponPricerBuilder("Hagan", "Numerical") {}
 
 protected:
-    virtual boost::shared_ptr<FloatingRateCouponPricer> engineImpl(const string& key) override;
+    virtual QuantLib::ext::shared_ptr<FloatingRateCouponPricer> engineImpl(const string& key) override;
 };
 
 class LinearTSRCmsCouponPricerBuilder : public CmsCouponPricerBuilder {
@@ -66,7 +66,7 @@ public:
     LinearTSRCmsCouponPricerBuilder() : CmsCouponPricerBuilder("LinearTSR", "LinearTSRPricer") {}
 
 protected:
-    virtual boost::shared_ptr<FloatingRateCouponPricer> engineImpl(const string& key) override;
+    virtual QuantLib::ext::shared_ptr<FloatingRateCouponPricer> engineImpl(const string& key) override;
 };
 } // namespace data
 } // namespace ore

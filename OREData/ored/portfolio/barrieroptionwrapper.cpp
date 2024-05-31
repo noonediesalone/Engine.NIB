@@ -63,9 +63,9 @@ Real BarrierOptionWrapper::NPV() const {
 
         // Handling the edge case where barrier = strike, is KO, and underlying is only ITM when inside KO barrier.
         // NPV should then be zero, but the pricing engine might not necessarily be pricing it as zero at the boundary.
-        auto vanillaOption = boost::dynamic_pointer_cast<VanillaOption>(activeUnderlyingInstrument_);
+        auto vanillaOption = QuantLib::ext::dynamic_pointer_cast<VanillaOption>(activeUnderlyingInstrument_);
         if (vanillaOption) {
-            auto payoff = boost::dynamic_pointer_cast<StrikedTypePayoff>(vanillaOption->payoff());
+            auto payoff = QuantLib::ext::dynamic_pointer_cast<StrikedTypePayoff>(vanillaOption->payoff());
             if (payoff && ((barrierType_ == Barrier::DownOut && payoff->optionType() == Option::Put) ||
                            (barrierType_ == Barrier::UpOut && payoff->optionType() == Option::Call))) {
                 const bool isTouchingOnly = true;
@@ -86,9 +86,9 @@ const std::map<std::string, boost::any>& BarrierOptionWrapper::additionalResults
         else
             return emptyMap;
     } else {
-        auto vanillaOption = boost::dynamic_pointer_cast<VanillaOption>(activeUnderlyingInstrument_);
+        auto vanillaOption = QuantLib::ext::dynamic_pointer_cast<VanillaOption>(activeUnderlyingInstrument_);
         if (vanillaOption) {
-            auto payoff = boost::dynamic_pointer_cast<StrikedTypePayoff>(vanillaOption->payoff());
+            auto payoff = QuantLib::ext::dynamic_pointer_cast<StrikedTypePayoff>(vanillaOption->payoff());
             if (payoff && ((barrierType_ == Barrier::DownOut && payoff->optionType() == Option::Put) ||
                            (barrierType_ == Barrier::UpOut && payoff->optionType() == Option::Call))) {
                 const bool isTouchingOnly = true;
@@ -129,24 +129,25 @@ bool SingleBarrierOptionWrapper::exercise() const {
             QL_REQUIRE(index_, "no index provided");
             QL_REQUIRE(calendar_ != Calendar(), "no calendar provided");
 
-            boost::shared_ptr<QuantExt::EqFxIndexBase> eqfxIndex =
-                boost::dynamic_pointer_cast<QuantExt::EqFxIndexBase>(index_);
+            QuantLib::ext::shared_ptr<QuantExt::EqFxIndexBase> eqfxIndex =
+                QuantLib::ext::dynamic_pointer_cast<QuantExt::EqFxIndexBase>(index_);
 
             if (eqfxIndex) {
                 Date d = calendar_.adjust(startDate_);
                 while (d < today && !trigger) {
                     Real fixing = eqfxIndex->pastFixing(d);
                     if (fixing == Null<Real>()) {
-                        ALOG(StructuredMessage(
+                        StructuredMessage(
                             StructuredMessage::Category::Error, StructuredMessage::Group::Fixing,
                             "Missing fixing for index " + index_->name() + " on " + ore::data::to_string(d) +
                                 ", Skipping this date, assuming no trigger",
-                            std::map<string, string>({{"exceptionType", "Invalid or missing fixings"}})));
+                            std::map<std::string, std::string>({{"exceptionType", "Invalid or missing fixings"}}))
+                            .log();
                     } else {
                         // This is so we can use pastIndex and not fail on a missing fixing to be
                         // consistent with previous implemention, however maybe we should use fixing
                         // and be strict on needed fixings being present
-                        auto fxInd = boost::dynamic_pointer_cast<QuantExt::FxIndex>(eqfxIndex);
+                        auto fxInd = QuantLib::ext::dynamic_pointer_cast<QuantExt::FxIndex>(eqfxIndex);
                         const bool isTouchingOnly = false;
                         trigger = checkBarrier(fixing, isTouchingOnly);
                         if (trigger)
@@ -189,19 +190,20 @@ bool DoubleBarrierOptionWrapper::exercise() const {
             QL_REQUIRE(calendar_ != Calendar(), "no calendar provided");
 
             
-            boost::shared_ptr<QuantExt::EqFxIndexBase> eqfxIndex =
-                boost::dynamic_pointer_cast<QuantExt::EqFxIndexBase>(index_);
+            QuantLib::ext::shared_ptr<QuantExt::EqFxIndexBase> eqfxIndex =
+                QuantLib::ext::dynamic_pointer_cast<QuantExt::EqFxIndexBase>(index_);
 
             if (eqfxIndex) {
                 Date d = calendar_.adjust(startDate_);
                 while (d < today && !trigger) {
                     Real fixing = eqfxIndex->pastFixing(d);
                     if (fixing == Null<Real>()) {
-                        ALOG(StructuredMessage(
+                        StructuredMessage(
                             StructuredMessage::Category::Error, StructuredMessage::Group::Fixing,
                             "Missing fixing for index " + index_->name() + " on " + ore::data::to_string(d) +
                                 ", Skipping this date, assuming no trigger",
-                            std::map<string, string>({{"exceptionType", "Invalid or missing fixings"}})));
+                            std::map<std::string, std::string>({{"exceptionType", "Invalid or missing fixings"}}))
+                            .log();
                     } else {
                         const bool isTouchingOnly = false;
                         trigger = checkBarrier(fixing, isTouchingOnly);

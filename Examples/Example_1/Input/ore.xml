@@ -19,15 +19,6 @@
     <Parameter name="calendarAdjustment">../../Input/calendaradjustment.xml</Parameter>
     <Parameter name="currencyConfiguration">../../Input/currencies.xml</Parameter>
   </Setup>
-  <Logging>
-    <Parameter name="logFile">log.txt</Parameter>
-    <Parameter name="logMask">31</Parameter>
-    <Parameter name="progressLogFile">my_log_progress_%N.txt</Parameter>
-    <Parameter name="progressLogRotationSize">102400</Parameter>
-    <Parameter name="progressLogToConsole">N</Parameter>
-    <Parameter name="structuredLogFile">my_structured_logs_%N.txt</Parameter>
-    <Parameter name="structuredLogRotationSize">102400</Parameter>
-  </Logging>
   <Markets>
     <Parameter name="lgmcalibration">libor</Parameter>
     <Parameter name="fxcalibration">libor</Parameter>
@@ -41,6 +32,7 @@
       <Parameter name="baseCurrency">EUR</Parameter>
       <Parameter name="outputFileName">npv.csv</Parameter>
       <Parameter name="additionalResults">Y</Parameter>
+      <Parameter name="additionalResultsReportPrecision">12</Parameter>
     </Analytic>
     <Analytic type="cashflow">
       <Parameter name="active">Y</Parameter>

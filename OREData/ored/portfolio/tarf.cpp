@@ -121,8 +121,8 @@ using namespace QuantExt;
         "  d = DATEINDEX(FixingAndSimDates[a], FixingDates, GT);\n"
         "  IF s > 0 THEN\n"
         "    IF d > 1 THEN\n"
-        // including Hits[d-1] in the regression is not stable
-        "      _AMC_NPV[s] = LongShort * NPVMEM( bwdPayoff, _AMC_SimDates[s], a, 1 == 1, AccProfit[d-1]);\n"
+        // including Hits[d-1] or AccProfit[d-1] in the regression is not stable
+        "      _AMC_NPV[s] = LongShort * NPVMEM( bwdPayoff, _AMC_SimDates[s], a);\n"
         "    ELSE\n"
         "      _AMC_NPV[s] = LongShort * NPVMEM( bwdPayoff, _AMC_SimDates[s], a);\n"
         "    END;\n"
@@ -229,7 +229,7 @@ using namespace QuantExt;
         "  d = DATEINDEX(FixingAndSimDates[a], FixingDates, GT);\n"
         "  IF s > 0 THEN\n"
         "    IF d > 1 THEN\n"
-        "      _AMC_NPV[s] = LongShort * NPVMEM( bwdPayoff, _AMC_SimDates[s], a, 1 == 1, AccProfitPoints[d-1]);\n"
+        "      _AMC_NPV[s] = LongShort * NPVMEM( bwdPayoff, _AMC_SimDates[s], a);\n"
         "    ELSE\n"
         "      _AMC_NPV[s] = LongShort * NPVMEM( bwdPayoff, _AMC_SimDates[s], a);\n"
         "    END;\n"
@@ -245,7 +245,7 @@ using namespace QuantExt;
 
 TaRF::TaRF(const std::string& currency, const std::string& fixingAmount, const std::string& targetAmount,
            const std::string& targetPoints, const std::vector<std::string>& strikes,
-           const std::vector<std::string>& strikeDates, const boost::shared_ptr<Underlying>& underlying,
+           const std::vector<std::string>& strikeDates, const QuantLib::ext::shared_ptr<Underlying>& underlying,
            const ScheduleData& fixingDates, const std::string& settlementLag, const std::string& settlementCalendar,
            const std::string& settlementConvention, OptionData& optionData,
            const std::vector<std::vector<RangeBound>>& rangeBoundSet,
@@ -265,7 +265,7 @@ TaRF::TaRF(const std::string& currency, const std::string& fixingAmount, const s
     initIndices();
 }
 
-void TaRF::build(const boost::shared_ptr<EngineFactory>& factory) {
+void TaRF::build(const QuantLib::ext::shared_ptr<EngineFactory>& factory) {
 
     // 1 inits
 
@@ -490,7 +490,7 @@ void TaRF::fromXML(XMLNode* node) {
     initIndices();
 }
 
-XMLNode* TaRF::toXML(XMLDocument& doc) {
+XMLNode* TaRF::toXML(XMLDocument& doc) const {
     XMLNode* node = Trade::toXML(doc);
     XMLNode* dataNode = doc.allocNode(tradeType() + "Data");
     XMLUtils::appendNode(node, dataNode);

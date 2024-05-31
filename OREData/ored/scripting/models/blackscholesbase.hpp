@@ -51,8 +51,8 @@ public:
     BlackScholesBase(
         const Size paths, const std::vector<std::string>& currencies,
         const std::vector<Handle<YieldTermStructure>>& curves, const std::vector<Handle<Quote>>& fxSpots,
-        const std::vector<std::pair<std::string, boost::shared_ptr<InterestRateIndex>>>& irIndices,
-        const std::vector<std::pair<std::string, boost::shared_ptr<ZeroInflationIndex>>>& infIndices,
+        const std::vector<std::pair<std::string, QuantLib::ext::shared_ptr<InterestRateIndex>>>& irIndices,
+        const std::vector<std::pair<std::string, QuantLib::ext::shared_ptr<ZeroInflationIndex>>>& infIndices,
         const std::vector<std::string>& indices, const std::vector<std::string>& indexCurrencies,
         const Handle<BlackScholesModelWrapper>& model,
         const std::map<std::pair<std::string, std::string>, Handle<QuantExt::CorrelationTermStructure>>& correlations,
@@ -103,8 +103,6 @@ protected:
     const std::vector<Date> simulationDates_;
 
     // these all except underlyingPaths_ are initialised when the interface functions above are called
-    mutable std::map<Size, std::vector<std::function<RandomVariable(const std::vector<const RandomVariable*>&)>>>
-        basisFns_;
     mutable Date referenceDate_;                      // the model reference date
     mutable std::set<Date> effectiveSimulationDates_; // the dates effectively simulated (including today)
     mutable TimeGrid timeGrid_;                       // the (possibly refined) time grid for the simulation
@@ -114,7 +112,7 @@ protected:
     mutable bool inTrainingPhase_ = false; // are we currently using training paths?
 
     // stored regression coefficients
-    mutable std::map<long, std::pair<Array, Size>> storedRegressionCoeff_;
+    mutable std::map<long, std::tuple<Array, Size, Matrix>> storedRegressionModel_;
 };
 
 } // namespace data

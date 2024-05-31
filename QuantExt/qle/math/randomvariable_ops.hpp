@@ -25,6 +25,8 @@
 #include <qle/math/randomvariable.hpp>
 #include <qle/math/randomvariable_opcodes.hpp>
 
+#include <ql/methods/montecarlo/lsmbasissystem.hpp>
+
 #include <map>
 
 namespace QuantExt {
@@ -33,19 +35,22 @@ namespace QuantExt {
 
 using RandomVariableOp = std::function<RandomVariable(const std::vector<const RandomVariable*>&)>;
 
-// basisFn maps possible state sizes to sets of appropriate basis functions
-std::vector<RandomVariableOp> getRandomVariableOps(
-    const Size size,
-    const std::map<Size, std::vector<std::function<RandomVariable(const std::vector<const RandomVariable*>&)>>>&
-        basisFn = {});
+// eps determines the smoothing, 0 means no smoothing (default)
+std::vector<RandomVariableOp>
+getRandomVariableOps(const Size size, const Size regressionOrder = 2,
+                     const QuantLib::LsmBasisSystem::PolynomialType polynomType = QuantLib::LsmBasisSystem::Monomial,
+                     const double eps = 0.0, QuantLib::Real regressionVarianceCutoff = Null<Real>());
 
 // random variable gradients
 
 using RandomVariableGrad =
     std::function<std::vector<RandomVariable>(const std::vector<const RandomVariable*>&, const RandomVariable*)>;
+
+// eps determines the smoothing, 0 means no smoothing
 std::vector<RandomVariableGrad> getRandomVariableGradients(
-    const Size size, const double eps = 0.2,
-    const std::vector<std::function<RandomVariable(const std::vector<const RandomVariable*>&)>>& basisFn = {});
+    const Size size, const Size regressionOrder = 2,
+    const QuantLib::LsmBasisSystem::PolynomialType polynomType = QuantLib::LsmBasisSystem::Monomial,
+    const double eps = 0.2, QuantLib::Real regressionVarianceCutoff = Null<Real>());
 
 // random variable flags which values are needed to compute the gradient
 

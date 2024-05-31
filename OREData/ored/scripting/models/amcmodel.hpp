@@ -23,29 +23,17 @@
 
 #pragma once
 
-#include <ored/scripting/value.hpp>
-
-#include <qle/models/modelbuilder.hpp>
-
-#include <qle/processes/crossassetstateprocess.hpp>
-
-#include <ql/patterns/lazyobject.hpp>
-#include <ql/settings.hpp>
-#include <ql/time/daycounters/actualactual.hpp>
-
-#include <boost/enable_shared_from_this.hpp>
+#include <qle/math/randomvariable.hpp>
 
 namespace ore {
 namespace data {
-
-using QuantLib::Date;
 
 class AmcModel {
 public:
     virtual ~AmcModel() {}
     virtual void injectPaths(const std::vector<QuantLib::Real>* pathTimes,
                              const std::vector<std::vector<QuantExt::RandomVariable>>* variates,
-                             const std::vector<bool>* isRelevantTime, const bool stickyCloseOutRun) = 0;
+                             const std::vector<size_t>* pathIndexes, const std::vector<size_t>* timeIndexes) = 0;
 };
 
 } // namespace data

@@ -41,13 +41,20 @@ public:
     ScriptedTradeEngineBuilder() : EngineBuilder("Generic", "Generic", {"ScriptedTrade"}) {}
 
     //! constructor that builds an AMC - enabled pricing engine
-    ScriptedTradeEngineBuilder(const boost::shared_ptr<QuantExt::CrossAssetModel>& amcCam,
+    ScriptedTradeEngineBuilder(const QuantLib::ext::shared_ptr<QuantExt::CrossAssetModel>& amcCam,
                                const std::vector<Date>& amcGrid)
-        : EngineBuilder("Generic", "Generic", {"ScriptedTrade"}), amcCam_(amcCam), amcGrid_(amcGrid) {}
+        : EngineBuilder("Generic", "Generic", {"ScriptedTrade"}), buildingAmc_(true), amcCam_(amcCam),
+          amcGrid_(amcGrid) {}
 
-    boost::shared_ptr<QuantExt::ScriptedInstrument::engine>
+    //! constructor that builds an AMCCG pricing engine
+    ScriptedTradeEngineBuilder(const QuantLib::ext::shared_ptr<ore::data::ModelCG>& amcCgModel,
+                               const std::vector<Date>& amcGrid)
+        : EngineBuilder("Generic", "Generic", {"ScriptedTrade"}), buildingAmc_(true), amcCgModel_(amcCgModel),
+          amcGrid_(amcGrid) {}
+
+    QuantLib::ext::shared_ptr<QuantExt::ScriptedInstrument::engine>
     engine(const std::string& id, const ScriptedTrade& scriptedTrade,
-           const boost::shared_ptr<ore::data::ReferenceDataManager>& referenceData = nullptr,
+           const QuantLib::ext::shared_ptr<ore::data::ReferenceDataManager>& referenceData = nullptr,
            const IborFallbackConfig& iborFallbackConfig = IborFallbackConfig::defaultConfig());
 
     // these are guaranteed to be set only after engine() was called
@@ -55,6 +62,7 @@ public:
     const QuantLib::Date& lastRelevantDate() const { return lastRelevantDate_; }
     const std::string& simmProductClass() const { return simmProductClass_; }
     const std::string& scheduleProductClass() const { return scheduleProductClass_; }
+    const std::string& sensitivityTemplate() const { return sensitivityTemplate_; }
     const std::map<std::string, std::set<Date>>& fixings() const { return fixings_; }
 
 protected:
@@ -65,7 +73,7 @@ protected:
 
     // sub tasks for engine building
     void clear();
-    void extractIndices(const boost::shared_ptr<ore::data::ReferenceDataManager>& referenceData = nullptr);
+    void extractIndices(const QuantLib::ext::shared_ptr<ore::data::ReferenceDataManager>& referenceData = nullptr);
     void deriveProductClass(const std::vector<ScriptedTradeValueTypeData>& indices);
     void populateModelParameters();
     void populateFixingsMap(const IborFallbackConfig& iborFallbackConfig);
@@ -83,10 +91,13 @@ protected:
     void buildLocalVol(const std::string& id, const IborFallbackConfig& iborFallbackConfig);
     void buildGaussianCam(const std::string& id, const IborFallbackConfig& iborFallbackConfig,
                           const std::vector<std::string>& conditionalExpectationModelStates);
+    void buildFdGaussianCam(const std::string& id, const IborFallbackConfig& iborFallbackConfig);
     void buildGaussianCamAMC(const std::string& id, const IborFallbackConfig& iborFallbackConfig,
                              const std::vector<std::string>& conditionalExpectationModelStates);
-    void addAmcGridToContext(boost::shared_ptr<Context>& context) const;
-    void setupCalibrationStrikes(const ScriptedTradeScriptData& script, const boost::shared_ptr<Context>& context);
+    void buildAMCCGModel(const std::string& id, const IborFallbackConfig& iborFallbackConfig,
+                         const std::vector<std::string>& conditionalExpectationModelStates);
+    void addAmcGridToContext(QuantLib::ext::shared_ptr<Context>& context) const;
+    void setupCalibrationStrikes(const ScriptedTradeScriptData& script, const QuantLib::ext::shared_ptr<Context>& context);
 
     // gets eq ccy from market
     std::string getEqCcy(const IndexInfo& e);
@@ -94,8 +105,10 @@ protected:
     // gets comm ccy from market
     std::string getCommCcy(const IndexInfo& e);
 
-    // input data
-    const boost::shared_ptr<QuantExt::CrossAssetModel> amcCam_;
+    // input data (for amc, amcCam_, amcCgModel_ are mutually exclusive)
+    bool buildingAmc_ = false;
+    const QuantLib::ext::shared_ptr<QuantExt::CrossAssetModel> amcCam_;
+    const QuantLib::ext::shared_ptr<ore::data::ModelCG> amcCgModel_;
     const std::vector<Date> amcGrid_;
 
     // cache for parsed asts
@@ -107,10 +120,11 @@ protected:
     QuantLib::Date lastRelevantDate_;
     std::string simmProductClass_;
     std::string scheduleProductClass_;
+    std::string sensitivityTemplate_;
     std::map<std::string, std::set<Date>> fixings_;
 
     // temporary variables used during engine building
-    boost::shared_ptr<StaticAnalyser> staticAnalyser_;
+    QuantLib::ext::shared_ptr<StaticAnalyser> staticAnalyser_;
     std::set<IndexInfo> eqIndices_, commIndices_, irIndices_, infIndices_, fxIndices_;
     std::string resolvedProductTag_, assetClassReplacement_;
     std::set<std::string> payCcys_;
@@ -119,14 +133,14 @@ protected:
     std::vector<Handle<YieldTermStructure>> modelCurves_;
     std::vector<Handle<Quote>> modelFxSpots_;
     std::vector<std::string> modelIndices_, modelIndicesCurrencies_;
-    std::vector<std::pair<std::string, boost::shared_ptr<InterestRateIndex>>> modelIrIndices_;
-    std::vector<std::pair<std::string, boost::shared_ptr<ZeroInflationIndex>>> modelInfIndices_;
+    std::vector<std::pair<std::string, QuantLib::ext::shared_ptr<InterestRateIndex>>> modelIrIndices_;
+    std::vector<std::pair<std::string, QuantLib::ext::shared_ptr<ZeroInflationIndex>>> modelInfIndices_;
     std::map<std::pair<std::string, std::string>, Handle<QuantExt::CorrelationTermStructure>> correlations_;
-    std::vector<boost::shared_ptr<GeneralizedBlackScholesProcess>> processes_;
+    std::vector<QuantLib::ext::shared_ptr<GeneralizedBlackScholesProcess>> processes_;
     std::map<std::string, Real> irReversions_;
     std::set<Date> simulationDates_, addDates_;
-    boost::shared_ptr<Model> model_;
-    boost::shared_ptr<ModelCG> modelCG_;
+    QuantLib::ext::shared_ptr<Model> model_;
+    QuantLib::ext::shared_ptr<ModelCG> modelCG_;
     std::map<std::string, std::vector<Real>> calibrationStrikes_;
 
     // model / engine parameters
@@ -146,7 +160,10 @@ protected:
     bool useCg_;
     bool useAd_;
     bool useExternalComputeDevice_;
+    bool useDoublePrecisionForExternalCalculation_;
+    bool externalDeviceCompatibilityMode_;
     std::string externalComputeDevice_;
+    bool includePastCashflows_;
 };
 
 } // namespace data

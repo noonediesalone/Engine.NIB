@@ -32,37 +32,45 @@ using std::string;
 namespace ore {
 namespace analytics {
 
-void SimmResults::add(const SimmConfiguration::ProductClass& pc, const SimmConfiguration::RiskClass& rc,
+void SimmResults::add(const CrifRecord::ProductClass& pc, const SimmConfiguration::RiskClass& rc,
                       const SimmConfiguration::MarginType& mt, const string& b, Real im, const string& resultCurrency,
                       const string& calculationCurrency, const bool overwrite) {
+        if (!(mt == SimmConfiguration::MarginType::AdditionalIM || mt == SimmConfiguration::MarginType::All))
+            QL_REQUIRE(im >= 0.0, "Cannot add negative IM " << im << " result to SimmResults for RiskClass=" << rc
+                                                            << ", MarginType=" << mt << ", and Bucket=" << b);
 
-    // Add the value as long as the currencies are matching. If the SimmResults container does not yet have
-    // a currency, we set it to be that of the incoming value
-    if (resultCcy_.empty())
-        resultCcy_ = resultCurrency;
-    else
-        QL_REQUIRE(resultCurrency == resultCcy_, "Cannot add value to SimmResults with a different result currency ("
-                                                    << resultCurrency << "). Expected " << resultCcy_ << ".");
-
-    if (calcCcy_.empty())
-        calcCcy_ = calculationCurrency;
-    else
-        QL_REQUIRE(calculationCurrency == calcCcy_, "Cannot add value to SimmResults in a different calculation currency ("
-                                                      << calculationCurrency << "). Expected " << calcCcy_ << ".");
-
-    if (!(mt == SimmConfiguration::MarginType::AdditionalIM || mt == SimmConfiguration::MarginType::All))
-        QL_REQUIRE(im >= 0.0, "Cannot add negative IM " << im << " result to SimmResults for RiskClass=" << rc
-                                                        << ", MarginType=" << mt << ", and Bucket=" << b);
-
-    const auto key = make_tuple(pc, rc, mt, b);
-    const bool hasResults = data_.find(key) != data_.end();
-    if (hasResults && !overwrite)
-        data_[key] += im;
-    else
-        data_[key] = im;
+        const auto key = make_tuple(pc, rc, mt, b);
+        add(key, im, resultCurrency, calculationCurrency, overwrite);
 }
 
-void SimmResults::convert(const boost::shared_ptr<ore::data::Market>& market, const string& currency) {
+
+void SimmResults::add(const SimmResults::Key& key, QuantLib::Real im, const std::string& resultCurrency,
+                      const std::string& calculationCurrency, const bool overwrite) {
+        // Add the value as long as the currencies are matching. If the SimmResults container does not yet have
+        // a currency, we set it to be that of the incoming value
+        if (resultCcy_.empty())
+            resultCcy_ = resultCurrency;
+        else
+            QL_REQUIRE(resultCurrency == resultCcy_,
+                       "Cannot add value to SimmResults with a different result currency ("
+                           << resultCurrency << "). Expected " << resultCcy_ << ".");
+
+        if (calcCcy_.empty())
+            calcCcy_ = calculationCurrency;
+        else
+            QL_REQUIRE(calculationCurrency == calcCcy_,
+                       "Cannot add value to SimmResults in a different calculation currency ("
+                           << calculationCurrency << "). Expected " << calcCcy_ << ".");
+
+        const bool hasResults = data_.find(key) != data_.end();
+        if (hasResults && !overwrite)
+            data_[key] += im;
+        else
+            data_[key] = im;
+ }
+
+
+void SimmResults::convert(const QuantLib::ext::shared_ptr<ore::data::Market>& market, const string& currency) {
     // Get corresponding FX spot rate
     Real fxSpot = market->fxRate(resultCcy_ + currency)->value();
 
@@ -86,7 +94,7 @@ void SimmResults::convert(Real fxSpot, const string& currency) {
     resultCcy_ = currency;
 }
 
-Real SimmResults::get(const SimmConfiguration::ProductClass& pc, const SimmConfiguration::RiskClass& rc,
+Real SimmResults::get(const CrifRecord::ProductClass& pc, const SimmConfiguration::RiskClass& rc,
                       const SimmConfiguration::MarginType& mt, const string b) const {
     if (has(pc, rc, mt, b)) {
         return data_.at(make_tuple(pc, rc, mt, b));
@@ -95,7 +103,7 @@ Real SimmResults::get(const SimmConfiguration::ProductClass& pc, const SimmConfi
     }
 }
 
-bool SimmResults::has(const SimmConfiguration::ProductClass& pc, const SimmConfiguration::RiskClass& rc,
+bool SimmResults::has(const CrifRecord::ProductClass& pc, const SimmConfiguration::RiskClass& rc,
                       const SimmConfiguration::MarginType& mt, const string b) const {
     return data_.count(make_tuple(pc, rc, mt, b)) > 0;
 }

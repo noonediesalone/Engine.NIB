@@ -63,16 +63,14 @@ public:
        - historical fixings are retrieved in eval() only; there they override today's spot if given
      */
     ModelCGImpl(const DayCounter& dayCounter, const Size size, const std::vector<std::string>& currencies,
-                const std::vector<std::pair<std::string, boost::shared_ptr<InterestRateIndex>>>& irIndices,
-                const std::vector<std::pair<std::string, boost::shared_ptr<ZeroInflationIndex>>>& infIndices,
+                const std::vector<std::pair<std::string, QuantLib::ext::shared_ptr<InterestRateIndex>>>& irIndices,
+                const std::vector<std::pair<std::string, QuantLib::ext::shared_ptr<ZeroInflationIndex>>>& infIndices,
                 const std::vector<std::string>& indices, const std::vector<std::string>& indexCurrencies,
                 const std::set<Date>& simulationDates, const IborFallbackConfig& iborFallbackConfig);
 
     // Model interface implementation (partial)
     const std::string& baseCcy() const override { return currencies_.front(); }
-    std::size_t dt(const Date& d1, const Date& d2) const override {
-        return cg_const(*g_, dayCounter_.yearFraction(d1, d2));
-    }
+    std::size_t dt(const Date& d1, const Date& d2) const override;
     std::size_t pay(const std::size_t amount, const Date& obsdate, const Date& paydate,
                     const std::string& currency) const override;
     std::size_t discount(const Date& obsdate, const Date& paydate, const std::string& currency) const override;
@@ -90,6 +88,7 @@ public:
     std::size_t cgVersion() const override;
     const std::vector<std::vector<std::size_t>>& randomVariates() const override; // dim / steps
     std::vector<std::pair<std::size_t, double>> modelParameters() const override;
+    std::vector<std::pair<std::size_t, std::function<double(void)>>>& modelParameterFunctors() const override;
 
 protected:
     // get (non-ir) index (forward) value for index[indexNo] for (fwd >=) d >= reference date
@@ -116,8 +115,8 @@ protected:
     const std::set<Date> simulationDates_;
     const IborFallbackConfig iborFallbackConfig_;
 
-    std::vector<std::pair<IndexInfo, boost::shared_ptr<InterestRateIndex>>> irIndices_;
-    std::vector<std::pair<IndexInfo, boost::shared_ptr<ZeroInflationIndex>>> infIndices_;
+    std::vector<std::pair<IndexInfo, QuantLib::ext::shared_ptr<InterestRateIndex>>> irIndices_;
+    std::vector<std::pair<IndexInfo, QuantLib::ext::shared_ptr<ZeroInflationIndex>>> infIndices_;
     std::vector<IndexInfo> indices_;
 
     // to be populated by derived classes when building the computation graph
@@ -125,7 +124,7 @@ protected:
     mutable std::vector<std::pair<std::size_t, std::function<double(void)>>> modelParameters_;
 
     // convenience function to add model parameters
-    void addModelParameter(const std::string& id, std::function<double(void)> f) const;
+    std::size_t addModelParameter(const std::string& id, std::function<double(void)> f) const;
 
     // manages cg version and triggers recalculations of random variate / model parameter nodes
     void performCalculations() const override;
@@ -136,10 +135,17 @@ private:
 
     // helper method to handle inflation fixings and their interpolation
     std::size_t getInflationIndexFixing(const bool returnMissingFixingAsNull, const std::string& indexInput,
-                                        const boost::shared_ptr<ZeroInflationIndex>& infIndex, const Size indexNo,
+                                        const QuantLib::ext::shared_ptr<ZeroInflationIndex>& infIndex, const Size indexNo,
                                         const Date& limDate, const Date& obsdate, const Date& fwddate,
                                         const Date& baseDate) const;
 };
+
+// convenience function to add model parameters, standalone variant
+std::size_t addModelParameter(ComputationGraph& g, std::vector<std::pair<std::size_t, std::function<double(void)>>>& m,
+                              const std::string& id, std::function<double(void)> f);
+
+// map date to a coarser grid if sloppyDates = true, otherwise just return d
+Date getSloppyDate(const Date& d, const bool sloppyDates, const std::set<Date>& dates);
 
 } // namespace data
 } // namespace ore

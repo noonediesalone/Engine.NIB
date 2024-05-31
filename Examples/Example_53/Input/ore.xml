@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <ORE>
   <Setup>
-    <Parameter name="asofDate">2023-09-21</Parameter>
+    <Parameter name="asofDate">2022-09-22</Parameter>
     <Parameter name="inputPath">Input</Parameter>
     <Parameter name="outputPath">Output</Parameter>
     <Parameter name="logFile">log.txt</Parameter>
@@ -38,7 +38,7 @@
     <Analytic type="curves">
       <Parameter name="active">Y</Parameter>
       <Parameter name="configuration">default</Parameter>
-      <Parameter name="grid">240,1M</Parameter>
+      <Parameter name="grid">750,1D</Parameter>
       <Parameter name="outputFileName">curves.csv</Parameter>
       <Parameter name="outputTodaysMarketCalibration">Y</Parameter>
     </Analytic>

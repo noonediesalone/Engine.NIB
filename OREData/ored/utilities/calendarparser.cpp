@@ -35,7 +35,6 @@
 #include <qle/calendars/ireland.hpp>
 #include <qle/calendars/islamicweekendsonly.hpp>
 #include <qle/calendars/israel.hpp>
-#include <qle/calendars/largejointcalendar.hpp>
 #include <qle/calendars/luxembourg.hpp>
 #include <qle/calendars/malaysia.hpp>
 #include <qle/calendars/mauritius.hpp>
@@ -88,7 +87,7 @@ QuantLib::Calendar CalendarParser::parseCalendar(const std::string& name) const 
                 QL_FAIL("Cannot convert \"" << name << "\" to Calendar [unhandled exception]");
             }
         }
-        return QuantExt::LargeJointCalendar(calendars);
+        return QuantLib::JointCalendar(calendars);
     }
 }
 
@@ -129,6 +128,7 @@ void CalendarParser::reset() {
         {"US-NERC", UnitedStates(UnitedStates::NERC)},
         {"US-NYSE", UnitedStates(UnitedStates::NYSE)},
         {"US-SET", UnitedStates(UnitedStates::Settlement)},
+        {"US-SOFR", UnitedStates(UnitedStates::SOFR)},
 
         // Country full name to Settlement/Default
         {"Australia", Australia()},
@@ -321,6 +321,8 @@ void CalendarParser::reset() {
         {"GBX", UnitedKingdom()},
         {"ILa", QuantLib::Israel()},
         {"ILX", QuantLib::Israel()},
+        {"ILs", QuantLib::Israel()},
+        {"ILA", QuantLib::Israel()},
         {"ZAc", SouthAfrica()},
         {"ZAC", SouthAfrica()},
         {"ZAX", SouthAfrica()},
@@ -384,6 +386,7 @@ void CalendarParser::reset() {
         {"XLME", UnitedKingdom(UnitedKingdom::Metals)},
         {"XNYS", UnitedStates(UnitedStates::NYSE)},
         {"XDUB", Ireland()},
+        {"XPAR", QuantLib::France(QuantLib::France::Exchange)},
 
         // Other / Legacy
         {"DEN", Denmark()}, // TODO: consider remove it, not ISO

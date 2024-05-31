@@ -22,7 +22,11 @@
 
 #pragma once
 
+#include <qle/methods/multipathgeneratorbase.hpp>
+
 #include <ql/patterns/singleton.hpp>
+
+#include <boost/thread/shared_mutex.hpp>
 
 #include <cstdint>
 #include <set>
@@ -59,6 +63,17 @@ public:
 
 class ComputeContext {
 public:
+    struct Settings {
+        Settings()
+            : debug(false), useDoublePrecision(false), rngSequenceType(QuantExt::SequenceType::MersenneTwister),
+              rngSeed(42), regressionOrder(4) {}
+        bool debug;
+        bool useDoublePrecision;
+        QuantExt::SequenceType rngSequenceType;
+        std::size_t rngSeed;
+        std::size_t regressionOrder;
+    };
+
     struct DebugInfo {
         unsigned long numberOfOperations = 0;
         unsigned long nanoSecondsDataCopy = 0;
@@ -71,12 +86,13 @@ public:
 
     virtual std::pair<std::size_t, bool> initiateCalculation(const std::size_t n, const std::size_t id = 0,
                                                              const std::size_t version = 0,
-                                                             const bool debug = false) = 0;
+                                                             const Settings settings = {}) = 0;
+    virtual void disposeCalculation(const std::size_t id) = 0;
 
     virtual std::size_t createInputVariable(double v) = 0;
     virtual std::size_t createInputVariable(double* v) = 0;
-    virtual std::vector<std::vector<std::size_t>> createInputVariates(const std::size_t dim, const std::size_t steps,
-                                                                      const std::uint32_t seed) = 0;
+    virtual std::vector<std::vector<std::size_t>> createInputVariates(const std::size_t dim,
+                                                                      const std::size_t steps) = 0;
 
     virtual std::size_t applyOperation(const std::size_t randomVariableOpCode,
                                        const std::vector<std::size_t>& args) = 0;
@@ -84,6 +100,11 @@ public:
     virtual void declareOutputVariable(const std::size_t id) = 0;
 
     virtual void finalizeCalculation(std::vector<double*>& output) = 0;
+
+    // get device info
+
+    virtual std::vector<std::pair<std::string, std::string>> deviceInfo() const { return {}; }
+    virtual bool supportsDoublePrecision() const { return false; }
 
     // debug info
 

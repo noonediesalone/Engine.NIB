@@ -24,12 +24,11 @@
 
 #include <qle/ad/computationgraph.hpp>
 
-#include <boost/shared_ptr.hpp>
+#include <ql/shared_ptr.hpp>
 
 namespace QuantExt {
 
 template <class T = double>
 std::string ssaForm(const ComputationGraph& g, const std::vector<std::string>& opCodeLabels,
-                    const std::vector<T>& values = {});
-
+                    const std::vector<T>& values = {}, const std::vector<T>& values2 = {});
 }

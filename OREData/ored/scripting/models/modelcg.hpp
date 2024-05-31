@@ -23,7 +23,6 @@
 
 #pragma once
 
-#include <qle/ad/computationgraph.hpp>
 #include <qle/math/randomvariable.hpp>
 #include <qle/math/randomvariable_ops.hpp>
 
@@ -32,6 +31,10 @@
 #include <ql/time/daycounters/actualactual.hpp>
 
 #include <boost/any.hpp>
+
+namespace QuantExt {
+class ComputationGraph;
+}
 
 namespace ore {
 namespace data {
@@ -46,11 +49,11 @@ class ModelCG : public QuantLib::LazyObject {
 public:
     enum class Type { MC, FD };
 
-    explicit ModelCG(const QuantLib::Size n) : n_(n) { g_ = boost::make_shared<QuantExt::ComputationGraph>(); }
+    explicit ModelCG(const QuantLib::Size n);
     virtual ~ModelCG() {}
 
     // computation graph
-    boost::shared_ptr<QuantExt::ComputationGraph> computationGraph() { return g_; }
+    QuantLib::ext::shared_ptr<QuantExt::ComputationGraph> computationGraph() { return g_; }
 
     // model type
     virtual Type type() const = 0;
@@ -59,10 +62,11 @@ public:
     virtual QuantLib::Size size() const { return n_; }
 
     // if not null, this model uses a separate mc training phase for NPV() calcs
-    virtual Size trainingPaths() const { return QuantLib::Null<Size>(); }
+    virtual Size trainingSamples() const { return QuantLib::Null<Size>(); }
 
-    // enable / disable the usage of the training paths (if trainingPaths() is not null)
-    virtual void enableTrainingPaths(const bool enable) const {}
+    /* enable / disable the usage of the training paths (if trainingPaths() is not null)
+       the model should be using training paths only temporarily and reset to normal model via RAII */
+    virtual void toggleTrainingPaths() const {}
 
     // the eval date
     virtual const Date& referenceDate() const = 0;
@@ -71,9 +75,7 @@ public:
     virtual const std::string& baseCcy() const = 0;
 
     // time between two dates d1 <= d2, default actact should be overriden in derived claases if appropriate
-    virtual std::size_t dt(const Date& d1, const Date& d2) const {
-        return cg_const(*g_, QuantLib::ActualActual(QuantLib::ActualActual::ISDA).yearFraction(d1, d2));
-    }
+    virtual std::size_t dt(const Date& d1, const Date& d2) const;
 
     // result must be as of max(refdate, obsdate); refdate < paydate and obsdate <= paydate required
     virtual std::size_t pay(const std::size_t amount, const Date& obsdate, const Date& paydate,
@@ -128,6 +130,7 @@ public:
     virtual std::size_t cgVersion() const = 0;
     virtual const std::vector<std::vector<std::size_t>>& randomVariates() const = 0; // dim / steps
     virtual std::vector<std::pair<std::size_t, double>> modelParameters() const = 0;
+    virtual std::vector<std::pair<std::size_t, std::function<double(void)>>>& modelParameterFunctors() const = 0;
 
     // get fx spot as of today directly, i.e. bypassing the cg
     virtual Real getDirectFxSpotT0(const std::string& forCcy, const std::string& domCcy) const = 0;
@@ -135,12 +138,15 @@ public:
     // get discount as of today directly, i.e. bypassing the cg
     virtual Real getDirectDiscountT0(const Date& paydate, const std::string& currency) const = 0;
 
+    // calculate the model
+    void calculate() const override { LazyObject::calculate(); }
+
 protected:
     // map with additional results provided by this model instance
     mutable std::map<std::string, boost::any> additionalResults_;
 
     // the underlying computation graph
-    boost::shared_ptr<QuantExt::ComputationGraph> g_;
+    QuantLib::ext::shared_ptr<QuantExt::ComputationGraph> g_;
 
 private:
     void performCalculations() const override {}

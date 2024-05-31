@@ -7,6 +7,7 @@ aggregation/creditmigrationhelper.cpp
 aggregation/creditsimulationparameters.cpp
 aggregation/cvaspreadsensitivitycalculator.cpp
 aggregation/dimcalculator.cpp
+aggregation/dimflatcalculator.cpp
 aggregation/dimregressioncalculator.cpp
 aggregation/dynamiccreditxvacalculator.cpp
 aggregation/exposureallocator.cpp
@@ -16,13 +17,25 @@ aggregation/postprocess.cpp
 aggregation/staticcreditxvacalculator.cpp
 aggregation/xvacalculator.cpp
 app/analytic.cpp
+app/analytics/analyticfactory.cpp
+app/analytics/imscheduleanalytic.cpp
 app/analytics/parconversionanalytic.cpp
+app/analytics/pnlexplainanalytic.cpp
+app/analytics/pnlanalytic.cpp
+app/analytics/parstressconversionanalytic.cpp
 app/analytics/pricinganalytic.cpp
+app/analytics/scenarioanalytic.cpp
 app/analytics/scenariostatisticsanalytic.cpp
 app/analytics/simmanalytic.cpp
+app/analytics/stresstestanalytic.cpp
 app/analytics/varanalytic.cpp
 app/analytics/xvaanalytic.cpp
+app/analytics/xvasensitivityanalytic.cpp
+app/analytics/xvastressanalytic.cpp
+app/analytics/zerotoparshiftanalytic.cpp
 app/analyticsmanager.cpp
+app/cleanupsingletons.cpp
+app/initbuilders.cpp
 app/inputparameters.cpp
 app/marketcalibrationreport.cpp
 app/marketdatacsvloader.cpp
@@ -45,10 +58,13 @@ cube/sparsenpvcube.cpp
 engine/amcvaluationengine.cpp
 engine/bufferedsensitivitystream.cpp
 engine/cptycalculator.cpp
+engine/decomposedsensitivitystream.cpp
 engine/filteredsensitivitystream.cpp
 engine/historicalpnlgenerator.cpp
 engine/historicalsensipnlcalculator.cpp
 engine/historicalsimulationvar.cpp
+engine/marketriskbacktest.cpp
+engine/marketriskreport.cpp
 engine/mporcalculator.cpp
 engine/multistatenpvcalculator.cpp
 engine/multithreadedvaluationengine.cpp
@@ -56,6 +72,11 @@ engine/npvrecord.cpp
 engine/parametricvar.cpp
 engine/parsensitivityanalysis.cpp
 engine/parsensitivitycubestream.cpp
+engine/parsensitivityinstrumentbuilder.cpp
+engine/parsensitivityutilities.cpp
+engine/parstressconverter.cpp
+engine/parstressscenarioconverter.cpp
+engine/pnlexplainreport.cpp
 engine/riskfilter.cpp
 engine/sensitivityaggregator.cpp
 engine/sensitivityanalysis.cpp
@@ -63,10 +84,15 @@ engine/sensitivitycubestream.cpp
 engine/sensitivityfilestream.cpp
 engine/sensitivityinmemorystream.cpp
 engine/sensitivityrecord.cpp
+engine/sensitivityreportstream.cpp
 engine/stresstest.cpp
 engine/valuationcalculator.cpp
 engine/valuationengine.cpp
+engine/varbacktest.cpp
+engine/varcalculator.cpp
+engine/xvaenginecg.cpp
 engine/zerotoparcube.cpp
+engine/zerotoparshift.cpp
 scenario/clonedscenariogenerator.cpp
 scenario/clonescenariofactory.cpp
 scenario/crossassetmodelscenariogenerator.cpp
@@ -84,6 +110,7 @@ scenario/scenariogeneratortransform.cpp
 scenario/scenarioshiftcalculator.cpp
 scenario/scenariosimmarket.cpp
 scenario/scenariosimmarketparameters.cpp
+scenario/scenarioutilities.cpp
 scenario/scenariowriter.cpp
 scenario/sensitivityscenariodata.cpp
 scenario/sensitivityscenariogenerator.cpp
@@ -91,12 +118,18 @@ scenario/shiftscenariogenerator.cpp
 scenario/simplescenario.cpp
 scenario/stressscenariodata.cpp
 scenario/stressscenariogenerator.cpp
+simm/crif.cpp
+simm/crifconfiguration.cpp
 simm/crifloader.cpp
 simm/crifrecord.cpp
+simm/imschedulecalculator.cpp
+simm/imscheduleresults.cpp
 simm/simmbasicnamemapper.cpp
 simm/simmbucketmapperbase.cpp
 simm/simmcalculator.cpp
+simm/simmcalibration.cpp
 simm/simmconcentration.cpp
+simm/simmconcentrationcalibration.cpp
 simm/simmconcentrationisdav1_3.cpp
 simm/simmconcentrationisdav1_3_38.cpp
 simm/simmconcentrationisdav2_0.cpp
@@ -109,6 +142,7 @@ simm/simmconcentrationisdav2_5a.cpp
 simm/simmconcentrationisdav2_6.cpp
 simm/simmconfiguration.cpp
 simm/simmconfigurationbase.cpp
+simm/simmconfigurationcalibration.cpp
 simm/simmconfigurationisdav1_0.cpp
 simm/simmconfigurationisdav1_3.cpp
 simm/simmconfigurationisdav1_3_38.cpp
@@ -134,6 +168,7 @@ aggregation/creditmigrationhelper.hpp
 aggregation/creditsimulationparameters.hpp
 aggregation/cvaspreadsensitivitycalculator.hpp
 aggregation/dimcalculator.hpp
+aggregation/dimflatcalculator.hpp
 aggregation/dimregressioncalculator.hpp
 aggregation/dynamiccreditxvacalculator.hpp
 aggregation/exposureallocator.hpp
@@ -143,13 +178,25 @@ aggregation/postprocess.hpp
 aggregation/staticcreditxvacalculator.hpp
 aggregation/xvacalculator.hpp
 app/analytic.hpp
+app/analytics/analyticfactory.hpp
+app/analytics/imscheduleanalytic.hpp
 app/analytics/parconversionanalytic.hpp
+app/analytics/pnlexplainanalytic.hpp
+app/analytics/pnlanalytic.hpp
+app/analytics/parstressconversionanalytic.hpp
 app/analytics/pricinganalytic.hpp
+app/analytics/scenarioanalytic.hpp
 app/analytics/scenariostatisticsanalytic.hpp
 app/analytics/simmanalytic.hpp
+app/analytics/stresstestanalytic.hpp
 app/analytics/varanalytic.hpp
 app/analytics/xvaanalytic.hpp
+app/analytics/xvasensitivityanalytic.hpp
+app/analytics/xvastressanalytic.hpp
+app/analytics/zerotoparshiftanalytic.hpp
 app/analyticsmanager.hpp
+app/cleanupsingletons.hpp
+app/initbuilders.hpp
 app/inputparameters.hpp
 app/marketcalibrationreport.hpp
 app/marketdatacsvloader.hpp
@@ -180,10 +227,13 @@ cube/sparsenpvcube.hpp
 engine/amcvaluationengine.hpp
 engine/bufferedsensitivitystream.hpp
 engine/cptycalculator.hpp
+engine/decomposedsensitivitystream.hpp
 engine/filteredsensitivitystream.hpp
 engine/historicalpnlgenerator.hpp
 engine/historicalsensipnlcalculator.hpp
 engine/historicalsimulationvar.hpp
+engine/marketriskbacktest.hpp
+engine/marketriskreport.hpp
 engine/mporcalculator.hpp
 engine/multistatenpvcalculator.hpp
 engine/multithreadedvaluationengine.hpp
@@ -192,6 +242,11 @@ engine/observationmode.hpp
 engine/parametricvar.hpp
 engine/parsensitivityanalysis.hpp
 engine/parsensitivitycubestream.hpp
+engine/parsensitivityinstrumentbuilder.hpp
+engine/parsensitivityutilities.hpp
+engine/parstressconverter.hpp
+engine/parstressscenarioconverter.hpp
+engine/pnlexplainreport.hpp
 engine/riskfilter.hpp
 engine/sensitivityaggregator.hpp
 engine/sensitivityanalysis.hpp
@@ -199,12 +254,16 @@ engine/sensitivitycubestream.hpp
 engine/sensitivityfilestream.hpp
 engine/sensitivityinmemorystream.hpp
 engine/sensitivityrecord.hpp
+engine/sensitivityreportstream.hpp
 engine/sensitivitystream.hpp
 engine/stresstest.hpp
 engine/valuationcalculator.hpp
 engine/valuationengine.hpp
+engine/varbacktest.hpp
 engine/varcalculator.hpp
+engine/xvaenginecg.hpp
 engine/zerotoparcube.hpp
+engine/zerotoparshift.hpp
 scenario/aggregationscenariodata.hpp
 scenario/clonedscenariogenerator.hpp
 scenario/clonescenariofactory.hpp
@@ -227,6 +286,7 @@ scenario/scenariogeneratortransform.hpp
 scenario/scenarioshiftcalculator.hpp
 scenario/scenariosimmarket.hpp
 scenario/scenariosimmarketparameters.hpp
+scenario/scenarioutilities.hpp
 scenario/scenariowriter.hpp
 scenario/sensitivityscenariodata.hpp
 scenario/sensitivityscenariogenerator.hpp
@@ -235,13 +295,19 @@ scenario/simplescenario.hpp
 scenario/simplescenariofactory.hpp
 scenario/stressscenariodata.hpp
 scenario/stressscenariogenerator.hpp
+simm/crif.hpp
+simm/crifconfiguration.hpp
 simm/crifloader.hpp
 simm/crifrecord.hpp
+simm/imschedulecalculator.hpp
+simm/imscheduleresults.hpp
 simm/simmbasicnamemapper.hpp
 simm/simmbucketmapper.hpp
 simm/simmbucketmapperbase.hpp
 simm/simmcalculator.hpp
+simm/simmcalibration.hpp
 simm/simmconcentration.hpp
+simm/simmconcentrationcalibration.hpp
 simm/simmconcentrationisdav1_3.hpp
 simm/simmconcentrationisdav1_3_38.hpp
 simm/simmconcentrationisdav2_0.hpp
@@ -254,6 +320,7 @@ simm/simmconcentrationisdav2_5a.hpp
 simm/simmconcentrationisdav2_6.hpp
 simm/simmconfiguration.hpp
 simm/simmconfigurationbase.hpp
+simm/simmconfigurationcalibration.hpp
 simm/simmconfigurationisdav1_0.hpp
 simm/simmconfigurationisdav1_3.hpp
 simm/simmconfigurationisdav1_3_38.hpp
@@ -273,7 +340,7 @@ simulation/simmarket.hpp
 version.hpp)
 
 writeAll("orea" "orea.hpp" "auto_link.hpp" "${OREAnalytics_HDR}")
-add_library(${OREA_LIB_NAME} ${OREAnalytics_SRC})
+add_library(${OREA_LIB_NAME} ${OREAnalytics_SRC} "engine/pnlexplainreport.cpp")
 target_link_libraries(${OREA_LIB_NAME} ${QL_LIB_NAME})
 target_link_libraries(${OREA_LIB_NAME} ${QLE_LIB_NAME})
 target_link_libraries(${OREA_LIB_NAME} ${ORED_LIB_NAME})

@@ -26,6 +26,7 @@
 #include <qle/cashflows/overnightindexedcoupon.hpp>
 #include <qle/math/randomvariablelsmbasissystem.hpp>
 #include <qle/math/randomvariable_ops.hpp>
+#include <qle/ad/computationgraph.hpp>
 
 #include <ql/math/comparison.hpp>
 #include <ql/math/matrixutilities/pseudosqrt.hpp>
@@ -48,8 +49,8 @@ BlackScholesCGBase::BlackScholesCGBase(const Size paths, const std::string& curr
 BlackScholesCGBase::BlackScholesCGBase(
     const Size paths, const std::vector<std::string>& currencies, const std::vector<Handle<YieldTermStructure>>& curves,
     const std::vector<Handle<Quote>>& fxSpots,
-    const std::vector<std::pair<std::string, boost::shared_ptr<InterestRateIndex>>>& irIndices,
-    const std::vector<std::pair<std::string, boost::shared_ptr<ZeroInflationIndex>>>& infIndices,
+    const std::vector<std::pair<std::string, QuantLib::ext::shared_ptr<InterestRateIndex>>>& irIndices,
+    const std::vector<std::pair<std::string, QuantLib::ext::shared_ptr<ZeroInflationIndex>>>& infIndices,
     const std::vector<std::string>& indices, const std::vector<std::string>& indexCurrencies,
     const Handle<BlackScholesModelWrapper>& model,
     const std::map<std::pair<std::string, std::string>, Handle<QuantExt::CorrelationTermStructure>>& correlations,
@@ -142,14 +143,11 @@ std::size_t BlackScholesCGBase::getIndexValue(const Size indexNo, const Date& d,
         auto p = model_->processes().at(indexNo);
         std::string idf = std::to_string(indexNo) + "_" + ore::data::to_string(effFwd);
         std::string idd = std::to_string(indexNo) + "_" + ore::data::to_string(d);
-        addModelParameter("__div_" + idd, [p, d]() { return p->dividendYield()->discount(d); });
-        addModelParameter("__div_" + idf, [p, effFwd]() { return p->dividendYield()->discount(effFwd); });
-        addModelParameter("__rfr_" + idd, [p, d]() { return p->riskFreeRate()->discount(d); });
-        addModelParameter("__rfr_" + idf, [p, effFwd]() { return p->riskFreeRate()->discount(effFwd); });
-        res = cg_mult(*g_, res,
-                      cg_mult(*g_, cg_var(*g_, "__div_" + idf),
-                              cg_div(*g_, cg_var(*g_, "__rfr_" + idd),
-                                     cg_mult(*g_, cg_var(*g_, "__div_" + idd), cg_var(*g_, "__rfr_" + idf)))));
+        std::size_t div_d = addModelParameter("__div_" + idd, [p, d]() { return p->dividendYield()->discount(d); });
+        std::size_t div_f = addModelParameter("__div_" + idf, [p, effFwd]() { return p->dividendYield()->discount(effFwd); });
+        std::size_t rfr_d = addModelParameter("__rfr_" + idd, [p, d]() { return p->riskFreeRate()->discount(d); });
+        std::size_t rfr_f = addModelParameter("__rfr_" + idf, [p, effFwd]() { return p->riskFreeRate()->discount(effFwd); });
+        res = cg_mult(*g_, res, cg_mult(*g_, div_f, cg_div(*g_, rfr_d, cg_mult(*g_, div_d, rfr_f))));
     }
     return res;
 }
@@ -162,8 +160,7 @@ std::size_t BlackScholesCGBase::getIrIndexValue(const Size indexNo, const Date& 
     effFixingDate = irIndices_.at(indexNo).second->fixingCalendar().adjust(effFixingDate);
     auto index = irIndices_.at(indexNo).second;
     std::string id = "__irFix_" + index->name() + "_" + ore::data::to_string(effFixingDate);
-    addModelParameter(id, [index, effFixingDate]() { return index->fixing(effFixingDate); });
-    return cg_var(*g_, id);
+    return addModelParameter(id, [index, effFixingDate]() { return index->fixing(effFixingDate); });
 }
 
 std::size_t BlackScholesCGBase::getInfIndexValue(const Size indexNo, const Date& d, const Date& fwd) const {
@@ -172,14 +169,13 @@ std::size_t BlackScholesCGBase::getInfIndexValue(const Size indexNo, const Date&
         effFixingDate = fwd;
     auto index = infIndices_.at(indexNo).second;
     std::string id = "__infFix_" + index->name() + "_" + ore::data::to_string(effFixingDate);
-    addModelParameter(id, [index, effFixingDate]() { return index->fixing(effFixingDate); });
-    return cg_var(*g_, id);
+    return addModelParameter(id, [index, effFixingDate]() { return index->fixing(effFixingDate); });
 }
 
 namespace {
 struct comp {
     comp(const std::string& indexInput) : indexInput_(indexInput) {}
-    template <typename T> bool operator()(const std::pair<IndexInfo, boost::shared_ptr<T>>& p) const {
+    template <typename T> bool operator()(const std::pair<IndexInfo, QuantLib::ext::shared_ptr<T>>& p) const {
         return p.first.name() == indexInput_;
     }
     const std::string indexInput_;
@@ -195,50 +191,48 @@ std::size_t BlackScholesCGBase::fwdCompAvg(const bool isAvg, const std::string& 
     auto index = std::find_if(irIndices_.begin(), irIndices_.end(), comp(indexInput));
     QL_REQUIRE(index != irIndices_.end(),
                "BlackScholesCGBase::fwdCompAvg(): did not find ir index " << indexInput << " - this is unexpected.");
-    auto on = boost::dynamic_pointer_cast<OvernightIndex>(index->second);
+    auto on = QuantLib::ext::dynamic_pointer_cast<OvernightIndex>(index->second);
     QL_REQUIRE(on, "BlackScholesCGBase::fwdCompAvg(): expected on index for " << indexInput);
     // if we want to support cap / floors we need the OIS CF surface
     QL_REQUIRE(cap > 999998.0 && floor < -999998.0,
                "BlackScholesCGBase:fwdCompAvg(): cap (" << cap << ") / floor (" << floor << ") not supported");
-    boost::shared_ptr<QuantLib::FloatingRateCoupon> coupon;
-    boost::shared_ptr<QuantLib::FloatingRateCouponPricer> pricer;
+    QuantLib::ext::shared_ptr<QuantLib::FloatingRateCoupon> coupon;
+    QuantLib::ext::shared_ptr<QuantLib::FloatingRateCouponPricer> pricer;
     if (isAvg) {
-        coupon = boost::make_shared<QuantExt::AverageONIndexedCoupon>(
+        coupon = QuantLib::ext::make_shared<QuantExt::AverageONIndexedCoupon>(
             end, 1.0, start, end, on, gearing, spread, rateCutoff, on->dayCounter(), lookback * Days, fixingDays);
-        pricer = boost::make_shared<AverageONIndexedCouponPricer>();
+        pricer = QuantLib::ext::make_shared<AverageONIndexedCouponPricer>();
     } else {
-        coupon = boost::make_shared<QuantExt::OvernightIndexedCoupon>(end, 1.0, start, end, on, gearing, spread, Date(),
+        coupon = QuantLib::ext::make_shared<QuantExt::OvernightIndexedCoupon>(end, 1.0, start, end, on, gearing, spread, Date(),
                                                                       Date(), on->dayCounter(), false, includeSpread,
                                                                       lookback * Days, rateCutoff, fixingDays);
-        pricer = boost::make_shared<OvernightIndexedCouponPricer>();
+        pricer = QuantLib::ext::make_shared<OvernightIndexedCouponPricer>();
     }
     coupon->setPricer(pricer);
     std::string id = "__fwdCompAvg_" + std::to_string(g_->size());
-    addModelParameter(id, [coupon]() { return coupon->rate(); });
-    return cg_var(*g_, id);
+    return addModelParameter(id, [coupon]() { return coupon->rate(); });
 }
 
 std::size_t BlackScholesCGBase::getDiscount(const Size idx, const Date& s, const Date& t) const {
     std::string ids = "__curve_" + std::to_string(idx) + "_" + ore::data::to_string(s);
     std::string idt = "__curve_" + std::to_string(idx) + "_" + ore::data::to_string(t);
     auto c = curves_.at(idx);
-    addModelParameter(ids, [c, s] { return c->discount(s); });
-    addModelParameter(idt, [c, t] { return c->discount(t); });
-    return cg_div(*g_, cg_var(*g_, idt), cg_var(*g_, ids));
+    std::size_t ns = addModelParameter(ids, [c, s] { return c->discount(s); });
+    std::size_t nt = addModelParameter(idt, [c, t] { return c->discount(t); });
+    return cg_div(*g_, nt, ns);
 }
 
 std::size_t BlackScholesCGBase::getNumeraire(const Date& s) const {
     std::string id = "__curve_0_" + ore::data::to_string(s);
     auto c = curves_.at(0);
-    addModelParameter(id, [c, s] { return c->discount(s); });
-    return cg_div(*g_, cg_const(*g_, 1.0), cg_var(*g_, id));
+    std::size_t ds = addModelParameter(id, [c, s] { return c->discount(s); });
+    return cg_div(*g_, cg_const(*g_, 1.0), ds);
 }
 
 std::size_t BlackScholesCGBase::getFxSpot(const Size idx) const {
     std::string id = "__fxspot_" + std::to_string(idx);
     auto c = fxSpots_.at(idx);
-    addModelParameter(id, [c] { return c->value(); });
-    return cg_var(*g_, id);
+    return addModelParameter(id, [c] { return c->value(); });
 }
 
 Real BlackScholesCGBase::getDirectFxSpotT0(const std::string& forCcy, const std::string& domCcy) const {

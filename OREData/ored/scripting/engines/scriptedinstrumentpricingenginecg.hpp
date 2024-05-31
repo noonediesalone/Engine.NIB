@@ -24,10 +24,11 @@
 
 #include <qle/ad/external_randomvariable_ops.hpp>
 
-#include <ored/scripting/models/modelcg.hpp>
 #include <ored/scripting/ast.hpp>
 #include <ored/scripting/computationgraphbuilder.hpp>
 #include <ored/scripting/context.hpp>
+#include <ored/scripting/models/model.hpp>
+#include <ored/scripting/models/modelcg.hpp>
 #include <ored/scripting/paylog.hpp>
 #include <ored/scripting/scriptedinstrument.hpp>
 
@@ -40,21 +41,19 @@ class ScriptedInstrumentPricingEngineCG : public QuantExt::ScriptedInstrument::e
 public:
     ScriptedInstrumentPricingEngineCG(const std::string& npv,
                                       const std::vector<std::pair<std::string, std::string>>& additionalResults,
-                                      const boost::shared_ptr<ModelCG>& model, const ASTNodePtr ast,
-                                      const boost::shared_ptr<Context>& context, const Model::McParams& mcParams,
-                                      const std::string& script = "", const bool interactive = false,
-                                      const bool amcEnabled = false,
-                                      const std::set<std::string>& amcStickyCloseOutStates = {},
-                                      const bool generateAdditionalResults = false, const bool useCachedSensis = false,
-                                      const bool useExternalComputeFramework = false)
-        : npv_(npv), additionalResults_(additionalResults), model_(model), ast_(ast), context_(context),
-          mcParams_(mcParams), script_(script), interactive_(interactive), amcEnabled_(amcEnabled),
-          amcStickyCloseOutStates_(amcStickyCloseOutStates), generateAdditionalResults_(generateAdditionalResults),
-          useCachedSensis_(useCachedSensis), useExternalComputeFramework_(useExternalComputeFramework) {
-        registerWith(model_);
-    }
+                                      const QuantLib::ext::shared_ptr<ModelCG>& model, const ASTNodePtr ast,
+                                      const QuantLib::ext::shared_ptr<Context>& context,
+                                      const Model::McParams& mcParams, const std::string& script = "",
+                                      const bool interactive = false, const bool generateAdditionalResults = false,
+                                      const bool includePastCashflows = false, const bool useCachedSensis = false,
+                                      const bool useExternalComputeFramework = false,
+                                      const bool useDoublePrecisionForExternalCalculation = false);
+    ~ScriptedInstrumentPricingEngineCG();
 
     bool lastCalculationWasValid() const { return lastCalculationWasValid_; }
+    const std::string& npvName() const { return npv_; }
+
+    void buildComputationGraph() const;
 
 private:
     void calculate() const override;
@@ -77,11 +76,10 @@ private:
 
     mutable std::vector<ComputationGraphBuilder::PayLogEntry> payLogEntries_;
     mutable std::set<std::size_t> keepNodes_;
-    mutable boost::shared_ptr<Context> workingContext_;
+    mutable QuantLib::ext::shared_ptr<Context> workingContext_;
 
     // computation graph associated ops
 
-    mutable std::vector<std::string> opLabels_;
     mutable std::vector<RandomVariableOpNodeRequirements> opNodeRequirements_;
 
     // if no external compute framework used
@@ -104,17 +102,17 @@ private:
 
     const std::string npv_;
     const std::vector<std::pair<std::string, std::string>> additionalResults_;
-    const boost::shared_ptr<ModelCG> model_;
+    const QuantLib::ext::shared_ptr<ModelCG> model_;
     const ASTNodePtr ast_;
-    const boost::shared_ptr<Context> context_;
+    const QuantLib::ext::shared_ptr<Context> context_;
     const Model::McParams mcParams_;
     const std::string script_;
     const bool interactive_;
-    const bool amcEnabled_;
-    const std::set<std::string> amcStickyCloseOutStates_;
     const bool generateAdditionalResults_;
+    const bool includePastCashflows_;
     const bool useCachedSensis_;
     const bool useExternalComputeFramework_;
+    const bool useDoublePrecisionForExternalCalculation_;
 };
 
 } // namespace data

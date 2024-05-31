@@ -49,7 +49,7 @@
 #include <boost/log/sources/record_ostream.hpp>
 #include <boost/log/sources/severity_logger.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/shared_ptr.hpp>
+#include <ql/shared_ptr.hpp>
 #include <map>
 #include <ql/qldefines.hpp>
 #include <queue>
@@ -118,7 +118,7 @@ namespace ore {
 namespace data {
 
 typedef boost::log::sinks::synchronous_sink<boost::log::sinks::text_file_backend> file_sink;
-typedef boost::log::sinks::synchronous_sink<boost::log::sinks::text_ostream_backend> cout_sink;
+typedef boost::log::sinks::synchronous_sink<boost::log::sinks::text_ostream_backend> text_sink;
 
 //! The Base Custom Log Handler class
 /*!
@@ -266,9 +266,11 @@ public:
     //! Destructor
     virtual ~IndependentLogger() {}
     virtual void removeSinks() = 0;
+    std::vector<std::string>& messages() { return messages_; }
+    void clear();
 
     //! Returns the Logger name
-    const std::string& name() { return name_; }
+    const std::string& name() const { return name_; }
 
 protected:
     //! Constructor
@@ -277,6 +279,7 @@ protected:
       \param name the logger name
      */
     IndependentLogger(const std::string& name) : name_(name) {}
+    std::vector<std::string> messages_;
 
 private:
     std::string name_;
@@ -290,18 +293,20 @@ public:
     //! the name "ProgressLogger"
     static const std::string name;
     //! Constructors
-    ProgressLogger() : IndependentLogger(name) {}
-    ProgressLogger(const bool coutLog) : IndependentLogger(name) { setCoutLog(coutLog); }
-    const boost::shared_ptr<file_sink>& fileSink() { return fileSink_; }
-    const boost::shared_ptr<cout_sink>& coutSink() { return coutSink_; }
+    ProgressLogger();
+    ProgressLogger(const bool coutLog) : ProgressLogger() { setCoutLog(coutLog); }
+    const QuantLib::ext::shared_ptr<file_sink>& fileSink() { return fileSink_; }
+    const QuantLib::ext::shared_ptr<text_sink>& coutSink() { return coutSink_; }
+    const QuantLib::ext::shared_ptr<text_sink>& cacheSink() { return cacheSink_; }
     //! Destructor
     virtual void removeSinks() override;
     void setCoutLog(bool flag);
-    void setFileLog(const std::string& filepath, const boost::filesystem::path& dir, QuantLib::Size rotationSize);
+    void setFileLog(const std::string& filepath, const boost::filesystem::path& dir, QuantLib::Size rotationSize = 0);
 
 private:
-    boost::shared_ptr<file_sink> fileSink_;
-    boost::shared_ptr<cout_sink> coutSink_;
+    QuantLib::ext::shared_ptr<file_sink> fileSink_;
+    QuantLib::ext::shared_ptr<text_sink> coutSink_;
+    QuantLib::ext::shared_ptr<text_sink> cacheSink_;
 };
 
 //! StructuredLogger
@@ -312,14 +317,39 @@ public:
     //! the name "StructuredLogger"
     static const std::string name;
     //! Constructors
-    StructuredLogger() : IndependentLogger(name) {}
-    const boost::shared_ptr<file_sink>& fileSink() { return fileSink_; }
+    StructuredLogger();
+    const QuantLib::ext::shared_ptr<file_sink>& fileSink() { return fileSink_; }
+    const QuantLib::ext::shared_ptr<text_sink>& cacheSink() { return cacheSink_; }
     //! Destructor
     virtual void removeSinks() override;
-    void setFileLog(const std::string& filepath, const boost::filesystem::path& dir, QuantLib::Size rotationSize);
+    void setFileLog(const std::string& filepath, const boost::filesystem::path& dir, QuantLib::Size rotationSize = 0);
 
 private:
-    boost::shared_ptr<file_sink> fileSink_;
+    QuantLib::ext::shared_ptr<file_sink> fileSink_;
+    QuantLib::ext::shared_ptr<text_sink> cacheSink_;
+};
+
+//! EventLogger
+/*!
+This logger listens for EventMessage logs from within ORE to support event logging for ORE components
+*/
+class EventLogger : public ore::data::IndependentLogger {
+public:
+    //! the name "EventLogger"
+    static const std::string name;
+
+    //! Constructor
+    //! This logger will only write event logs. All other logs will be ignored.
+    EventLogger() : IndependentLogger(name) {}
+
+    void setFormatter(const std::function<void(const boost::log::record_view&, boost::log::formatting_ostream&)>&);
+    const QuantLib::ext::shared_ptr<file_sink>& fileSink() { return fileSink_; }
+    //! Destructor
+    virtual void removeSinks() override;
+    void setFileLog(const std::string& filepath);
+
+private:
+    QuantLib::ext::shared_ptr<file_sink> fileSink_;
 };
 
 //! Global static Log class
@@ -335,19 +365,19 @@ private:
   To configure the Log class to log to a file "/tmp/my_log.txt"
   <pre>
       Log::instance().removeAllLoggers();
-      Log::instance().registerLogger(boost::shared_ptr<Logger>(new FileLogger("/tmp/my_log.txt")));
+      Log::instance().registerLogger(QuantLib::ext::shared_ptr<Logger>(new FileLogger("/tmp/my_log.txt")));
   </pre>
 
   To change the Log class to only use a BufferLogger the user must call
   <pre>
       Log::instance().removeAllLoggers();
-      Log::instance().registerLogger(boost::shared_ptr<Logger>(new BufferLogger));
+      Log::instance().registerLogger(QuantLib::ext::shared_ptr<Logger>(new BufferLogger));
   </pre>
   and then to retrieve log messages from the buffer and print them to stdout the user must call:
   <pre>
       std::cout << "Begin Log Messages:" << std::endl;
 
-      boost::shared_ptr<BufferLogger> bl = boost::dynamic_pointer_cast<BufferLogger>
+      QuantLib::ext::shared_ptr<BufferLogger> bl = QuantLib::ext::dynamic_pointer_cast<BufferLogger>
         (Log::instance().logger(BufferLogger::name));
 
       while (bl.hasNext())
@@ -367,29 +397,37 @@ public:
       This method will throw if a logger with the same name is already registered.
       \param logger the logger to add
      */
-    void registerLogger(const boost::shared_ptr<Logger>& logger);
-    void registerIndependentLogger(const boost::shared_ptr<IndependentLogger>& logger);
+    void registerLogger(const QuantLib::ext::shared_ptr<Logger>& logger);
+    void registerIndependentLogger(const QuantLib::ext::shared_ptr<IndependentLogger>& logger);
+    void clearAllIndependentLoggers();
+
+    //! Check if logger exists
+    const bool hasLogger(const std::string& name) const;
+    const bool hasIndependentLogger(const std::string& name) const;
+
     //! Retrieve a Logger.
     /*!
       Retrieve a Logger by it's name, for example to retrieve the StderrLogger (assuming it is registered)
       <pre>
-      boost::shared_ptr<Logger> slogger = Log::instance().logger(StderrLogger::name);
+      QuantLib::ext::shared_ptr<Logger> slogger = Log::instance().logger(StderrLogger::name);
       </pre>
       */
-    boost::shared_ptr<Logger>& logger(const std::string& name);
+    QuantLib::ext::shared_ptr<Logger>& logger(const std::string& name);
+    QuantLib::ext::shared_ptr<IndependentLogger>& independentLogger(const std::string& name);
+
     //! Remove a Logger
     /*!
       Remove a logger by name
       \param name the logger name
      */
     void removeLogger(const std::string& name);
+    void removeIndependentLogger(const std::string& name);
+    
     //! Remove all loggers
     /*!
       Removes all loggers. If called, all subsequent log messages will be ignored.
      */
     void removeAllLoggers();
-
-    std::string source(const char* filename, int lineNo);
 
     void addExcludeFilter(const std::string&, const std::function<bool(const std::string&)>);
 
@@ -397,11 +435,11 @@ public:
 
     bool checkExcludeFilters(const std::string&);
 
-    //! macro utility function - do not use directly
+    //! macro utility function - do not use directly, not thread safe
     void header(unsigned m, const char* filename, int lineNo);
-    //! macro utility function - do not use directly
+    //! macro utility function - do not use directly, not thread safe
     std::ostream& logStream() { return ls_; }
-    //! macro utility function - do not use directly
+    //! macro utility function - do not use directly, not thread safe
     void log(unsigned m);
 
     //! mutex to acquire locks
@@ -421,7 +459,7 @@ public:
         mask_ = mask;
     }
     const boost::filesystem::path& rootPath() {
-        boost::unique_lock<boost::shared_mutex> lock(mutex());
+        boost::shared_lock<boost::shared_mutex> lock(mutex());
         return rootPath_;
     }
     void setRootPath(const boost::filesystem::path& pth) {
@@ -429,7 +467,7 @@ public:
         rootPath_ = pth;
     }
     int maxLen() {
-        boost::unique_lock<boost::shared_mutex> lock(mutex());
+        boost::shared_lock<boost::shared_mutex> lock(mutex());
         return maxLen_;
     }
     void setMaxLen(const int n) {
@@ -450,14 +488,22 @@ public:
         enabled_ = false;
     }
 
+    bool writeSuppressedMessagesHint() {
+        boost::shared_lock<boost::shared_mutex> lock(mutex());
+        return writeSuppressedMessagesHint_;
+    }
+
     //! if a PID is set for the logger, messages are tagged with [1234] if pid = 1234
     void setPid(const int pid) { pid_ = pid; }
 
 private:
     Log();
 
-    std::map<std::string, boost::shared_ptr<Logger>> loggers_;
-    std::map<std::string, boost::shared_ptr<IndependentLogger>> independentLoggers_;
+    // not thread safe
+    std::string source(const char* filename, int lineNo) const;
+
+    std::map<std::string, QuantLib::ext::shared_ptr<Logger>> loggers_;
+    std::map<std::string, QuantLib::ext::shared_ptr<IndependentLogger>> independentLoggers_;
     bool enabled_;
     unsigned mask_;
     boost::filesystem::path rootPath_;
@@ -592,12 +638,14 @@ public:
     //! return a std::string for the log file
     virtual std::string msg() const = 0;
     //! generate Boost log record to pass to corresponding sinks
-    virtual void log() const = 0;
+    void log() const;
     //! create JSON-like output from the data
     const std::string json() const { return jsonify(data_); }
     void set(const std::string& key, const boost::any& value) { data_[key] = value; }
 
 protected:
+    //! generate Boost log record - this method is called by log()
+    virtual void emitLog() const = 0;
     static std::string jsonify(const boost::any&);
 
     std::map<std::string, boost::any> data_;
@@ -646,7 +694,7 @@ public:
     //! return a std::string for the log file
     std::string msg() const { return std::string(name) + std::string(" ") + json(); }
     //! generate Boost log record to pass to corresponding sinks
-    void log() const;
+    void emitLog() const;
 
 protected:
     void addSubFields(const std::map<std::string, std::string>&);
@@ -655,8 +703,6 @@ protected:
 std::ostream& operator<<(std::ostream& out, const StructuredMessage::Category&);
 
 std::ostream& operator<<(std::ostream& out, const StructuredMessage::Group&);
-
-inline std::ostream& operator<<(std::ostream& out, const StructuredMessage& sm) { return out << sm.msg(); }
 
 class StructuredLoggingErrorMessage : public StructuredMessage {
 public:
@@ -677,27 +723,23 @@ public:
     //! return a std::string for the log file
     std::string msg() const { return std::string(name) + std::string(" ") + json(); }
     //! generate Boost log record to pass to corresponding sinks
-    void log() const;
+    void emitLog() const;
 
 private:
     std::string message_;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const EventMessage& em) { return out << em.msg(); }
-
 class ProgressMessage : public JSONMessage {
 public:
-    ProgressMessage(const std::string&, const QuantLib::Size, const QuantLib::Size);
+    ProgressMessage(const std::string&, const QuantLib::Size, const QuantLib::Size, const std::string& detail = "");
 
     static constexpr const char* name = "ProgressMessage";
 
     //! return a std::string for the log file
     std::string msg() const { return std::string(name) + std::string(" ") + json(); }
     //! generate Boost log record to pass to corresponding sinks
-    void log() const;
+    void emitLog() const;
 };
-
-inline std::ostream& operator<<(std::ostream& out, const ProgressMessage& pm) { return out << pm.msg(); }
 
 //! Singleton to control console logging
 //

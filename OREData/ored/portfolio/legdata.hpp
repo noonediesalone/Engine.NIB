@@ -103,7 +103,7 @@ public:
     //! \name Serialisation
     //@{
     void fromXML(XMLNode* node) override;
-    XMLNode* toXML(XMLDocument& doc) override;
+    XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 private:
     vector<double> amounts_;
@@ -131,7 +131,7 @@ public:
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 private:
     vector<double> rates_;
@@ -163,7 +163,7 @@ public:
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 private:
     vector<double> rates_;
@@ -245,7 +245,7 @@ public:
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 private:
     string index_;
@@ -322,7 +322,7 @@ public:
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 private:
     string index_;
@@ -388,7 +388,7 @@ public:
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 
 private:
@@ -456,7 +456,7 @@ public:
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 private:
     string swapIndex_;
@@ -482,7 +482,7 @@ public:
     //! Default constructor
     DigitalCMSLegData() : LegAdditionalData("DigitalCMS") {}
     //! Constructor
-    DigitalCMSLegData(const boost::shared_ptr<CMSLegData>& underlying, Position::Type callPosition = Position::Long,
+    DigitalCMSLegData(const QuantLib::ext::shared_ptr<CMSLegData>& underlying, Position::Type callPosition = Position::Long,
                       bool isCallATMIncluded = false, const vector<double> callStrikes = vector<double>(),
                       const vector<string> callStrikeDates = vector<string>(),
                       const vector<double> callPayoffs = vector<double>(),
@@ -502,7 +502,7 @@ public:
 
     //! \name Inspectors
     //@{
-    const boost::shared_ptr<CMSLegData>& underlying() const { return underlying_; }
+    const QuantLib::ext::shared_ptr<CMSLegData>& underlying() const { return underlying_; }
 
     const Position::Type callPosition() const { return callPosition_; }
     const bool isCallATMIncluded() const { return isCallATMIncluded_; }
@@ -522,10 +522,10 @@ public:
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 private:
-    boost::shared_ptr<CMSLegData> underlying_;
+    QuantLib::ext::shared_ptr<CMSLegData> underlying_;
 
     Position::Type callPosition_;
     bool isCallATMIncluded_;
@@ -596,7 +596,7 @@ public:
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 private:
     string swapIndex1_;
@@ -624,7 +624,7 @@ public:
     DigitalCMSSpreadLegData() : LegAdditionalData("DigitalCMSSpread") {}
     //! Constructor
     DigitalCMSSpreadLegData(
-        const boost::shared_ptr<CMSSpreadLegData>& underlying, Position::Type callPosition = Position::Long,
+        const QuantLib::ext::shared_ptr<CMSSpreadLegData>& underlying, Position::Type callPosition = Position::Long,
         bool isCallATMIncluded = false, const vector<double> callStrikes = vector<double>(),
         const vector<string> callStrikeDates = vector<string>(), const vector<double> callPayoffs = vector<double>(),
         const vector<string> callPayoffDates = vector<string>(), Position::Type putPosition = Position::Long,
@@ -641,7 +641,7 @@ public:
 
     //! \name Inspectors
     //@{
-    const boost::shared_ptr<CMSSpreadLegData>& underlying() const { return underlying_; }
+    const QuantLib::ext::shared_ptr<CMSSpreadLegData>& underlying() const { return underlying_; }
 
     const Position::Type callPosition() const { return callPosition_; }
     const bool isCallATMIncluded() const { return isCallATMIncluded_; }
@@ -661,10 +661,10 @@ public:
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 private:
-    boost::shared_ptr<CMSSpreadLegData> underlying_;
+    QuantLib::ext::shared_ptr<CMSSpreadLegData> underlying_;
 
     Position::Type callPosition_ = Position::Long;
     bool isCallATMIncluded_ = false;
@@ -732,7 +732,7 @@ public:
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 private:
     string genericBond_;
@@ -790,7 +790,7 @@ public:
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 private:
     string fxIndex_;
@@ -847,7 +847,7 @@ public:
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 private:
     EquityReturnType returnType_;
@@ -875,7 +875,7 @@ public:
     }
 
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
 
     //! FixedAmount, RelativeToInitialNotional, RelativeToPreviousNotional, Annuity
     const string& type() const { return type_; }
@@ -912,7 +912,7 @@ public:
     }
 
     //! Constructor with concrete leg data
-    LegData(const boost::shared_ptr<LegAdditionalData>& innerLegData, bool isPayer, const string& currency,
+    LegData(const QuantLib::ext::shared_ptr<LegAdditionalData>& innerLegData, bool isPayer, const string& currency,
             const ScheduleData& scheduleData = ScheduleData(), const string& dayCounter = "",
             const std::vector<double>& notionals = std::vector<double>(),
             const std::vector<string>& notionalDates = std::vector<string>(), const string& paymentConvention = "F",
@@ -920,7 +920,8 @@ public:
             const bool notionalAmortizingExchange = false, const bool isNotResetXCCY = true,
             const string& foreignCurrency = "", const double foreignAmount = 0, const string& fxIndex = "",
             const std::vector<AmortizationData>& amortizationData = std::vector<AmortizationData>(),
-            const string& paymentLag = "", const std::string& paymentCalendar = "",
+            const string& paymentLag = "", const string& notionalPaymentLag = "",
+            const std::string& paymentCalendar = "",
             const std::vector<std::string>& paymentDates = std::vector<std::string>(),
             const std::vector<Indexing>& indexing = {}, const bool indexingFromAssetLeg = false,
             const string& lastPeriodDayCounter = "");
@@ -928,7 +929,7 @@ public:
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
-    virtual XMLNode* toXML(XMLDocument& doc) override;
+    virtual XMLNode* toXML(XMLDocument& doc) const override;
     //@}
 
     //! \name Inspectors
@@ -948,10 +949,11 @@ public:
     double foreignAmount() const { return foreignAmount_; }
     const string& fxIndex() const { return fxIndex_; }
     const string& paymentLag() const { return paymentLag_; }
+    const string& notionalPaymentLag() const { return notionalPaymentLag_; }
     const std::vector<AmortizationData>& amortizationData() const { return amortizationData_; }
     const std::string& paymentCalendar() const { return paymentCalendar_; }
     const string& legType() const { return concreteLegData_->legType(); }
-    boost::shared_ptr<LegAdditionalData> concreteLegData() const { return concreteLegData_; }
+    QuantLib::ext::shared_ptr<LegAdditionalData> concreteLegData() const { return concreteLegData_; }
     const std::set<std::string>& indices() const { return indices_; }
     const std::vector<std::string>& paymentDates() const { return paymentDates_; }
     const std::vector<Indexing>& indexing() const { return indexing_; }
@@ -968,7 +970,7 @@ public:
     vector<string>& notionalDates() { return notionalDates_; }
     string& dayCounter() { return dayCounter_; }
     bool& isPayer() { return isPayer_; }
-    boost::shared_ptr<LegAdditionalData>& concreteLegData() { return concreteLegData_; }
+    QuantLib::ext::shared_ptr<LegAdditionalData>& concreteLegData() { return concreteLegData_; }
     std::vector<Indexing>& indexing() { return indexing_; }
     bool& indexingFromAssetLeg() { return indexingFromAssetLeg_; }
     string& paymentConvention() { return paymentConvention_; }
@@ -977,7 +979,7 @@ public:
     bool& strictNotionalDates() { return strictNotionalDates_; }
     //@}
 
-    virtual boost::shared_ptr<LegAdditionalData> initialiseConcreteLegData(const string&);
+    virtual QuantLib::ext::shared_ptr<LegAdditionalData> initialiseConcreteLegData(const string&);
 
 protected:
     /*! Store the set of ORE index names that appear on this leg.
@@ -988,7 +990,7 @@ protected:
     std::set<std::string> indices_;
 
 private:
-    boost::shared_ptr<LegAdditionalData> concreteLegData_;
+    QuantLib::ext::shared_ptr<LegAdditionalData> concreteLegData_;
     bool isPayer_ = true;
     string currency_;
     string legType_;
@@ -1005,7 +1007,7 @@ private:
     double foreignAmount_ = 0.0;
     string fxIndex_;
     std::vector<AmortizationData> amortizationData_;
-    string paymentLag_;
+    string paymentLag_, notionalPaymentLag_;
     std::string paymentCalendar_;
     std::vector<std::string> paymentDates_;
     std::vector<Indexing> indexing_;
@@ -1019,52 +1021,53 @@ private:
 //@{
 Leg makeFixedLeg(const LegData& data, const QuantLib::Date& openEndDateReplacement = Null<Date>());
 Leg makeZCFixedLeg(const LegData& data, const QuantLib::Date& openEndDateReplacement = Null<Date>());
-Leg makeIborLeg(const LegData& data, const boost::shared_ptr<IborIndex>& index,
-                const boost::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
+Leg makeIborLeg(const LegData& data, const QuantLib::ext::shared_ptr<IborIndex>& index,
+                const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
                 const QuantLib::Date& openEndDateReplacement = Null<Date>());
-Leg makeOISLeg(const LegData& data, const boost::shared_ptr<OvernightIndex>& index,
-               const boost::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
+Leg makeOISLeg(const LegData& data, const QuantLib::ext::shared_ptr<OvernightIndex>& index,
+               const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
                const QuantLib::Date& openEndDateReplacement = Null<Date>());
-Leg makeBMALeg(const LegData& data, const boost::shared_ptr<QuantExt::BMAIndexWrapper>& indexWrapper,
-               const boost::shared_ptr<EngineFactory>& engineFactory,
+Leg makeBMALeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantExt::BMAIndexWrapper>& indexWrapper,
+               const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory,
                const QuantLib::Date& openEndDateReplacement = Null<Date>());
 Leg makeSimpleLeg(const LegData& data);
 Leg makeNotionalLeg(const Leg& refLeg, const bool initNomFlow, const bool finalNomFlow, const bool amortNomFlow,
-                    const QuantLib::Natural paymentLag, const BusinessDayConvention paymentConvention,
+                    const QuantLib::Natural notionalPaymentLag, const BusinessDayConvention paymentConvention,
                     const Calendar paymentCalendar, const bool excludeIndexing = true);
-Leg makeCPILeg(const LegData& data, const boost::shared_ptr<ZeroInflationIndex>& index,
-               const boost::shared_ptr<EngineFactory>& engineFactory,
+Leg makeCPILeg(const LegData& data, const QuantLib::ext::shared_ptr<ZeroInflationIndex>& index,
+               const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory,
                const QuantLib::Date& openEndDateReplacement = Null<Date>());
-Leg makeYoYLeg(const LegData& data, const boost::shared_ptr<InflationIndex>& index,
-               const boost::shared_ptr<EngineFactory>& engineFactory,
+Leg makeYoYLeg(const LegData& data, const QuantLib::ext::shared_ptr<InflationIndex>& index,
+               const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory,
                const QuantLib::Date& openEndDateReplacement = Null<Date>());
-Leg makeCMSLeg(const LegData& data, const boost::shared_ptr<QuantLib::SwapIndex>& swapindex,
-               const boost::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
+Leg makeCMSLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantLib::SwapIndex>& swapindex,
+               const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
                const QuantLib::Date& openEndDateReplacement = Null<Date>());
-Leg makeCMBLeg(const LegData& data, const boost::shared_ptr<EngineFactory>& engineFactory,
-               const bool attachPricer = true, const QuantLib::Date& openEndDateReplacement = Null<Date>());
-Leg makeDigitalCMSLeg(const LegData& data, const boost::shared_ptr<QuantLib::SwapIndex>& swapIndex,
-                      const boost::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
+Leg makeCMBLeg(const LegData& data, 
+               const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
+               const QuantLib::Date& openEndDateReplacement = Null<Date>());
+Leg makeDigitalCMSLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantLib::SwapIndex>& swapIndex,
+                      const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
                       const QuantLib::Date& openEndDateReplacement = Null<Date>());
-Leg makeCMSSpreadLeg(const LegData& data, const boost::shared_ptr<QuantLib::SwapSpreadIndex>& swapSpreadIndex,
-                     const boost::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
+Leg makeCMSSpreadLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantLib::SwapSpreadIndex>& swapSpreadIndex,
+                     const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
                      const QuantLib::Date& openEndDateReplacement = Null<Date>());
-Leg makeDigitalCMSSpreadLeg(const LegData& data, const boost::shared_ptr<QuantLib::SwapSpreadIndex>& swapSpreadIndex,
-                            const boost::shared_ptr<EngineFactory>& engineFactory,
+Leg makeDigitalCMSSpreadLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantLib::SwapSpreadIndex>& swapSpreadIndex,
+                            const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory,
                             const QuantLib::Date& openEndDateReplacement = Null<Date>());
-Leg makePRDCLeg(const LegData& data, const boost::shared_ptr<QuantExt::FxIndex>& fxIndex,
-                const boost::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
+Leg makePRDCLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantExt::FxIndex>& fxIndex,
+                const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer = true,
                 const QuantLib::Date& openEndDateReplacement = Null<Date>());
-Leg makeEquityLeg(const LegData& data, const boost::shared_ptr<QuantExt::EquityIndex2>& equityCurve,
-                  const boost::shared_ptr<QuantExt::FxIndex>& fxIndex = nullptr,
+Leg makeEquityLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantExt::EquityIndex2>& equityCurve,
+                  const QuantLib::ext::shared_ptr<QuantExt::FxIndex>& fxIndex = nullptr,
                   const QuantLib::Date& openEndDateReplacement = Null<Date>());
 Real currentNotional(const Leg& leg);
 Real originalNotional(const Leg& leg);
 
-std::string getCmbLegCreditRiskCurrency(const CMBLegData& ld, const boost::shared_ptr<ReferenceDataManager>& refData);
+std::string getCmbLegCreditRiskCurrency(const CMBLegData& ld, const QuantLib::ext::shared_ptr<ReferenceDataManager>& refData);
 
 std::pair<std::string, SimmCreditQualifierMapping>
-getCmbLegCreditQualifierMapping(const CMBLegData& ld, const boost::shared_ptr<ReferenceDataManager>& refData,
+getCmbLegCreditQualifierMapping(const CMBLegData& ld, const QuantLib::ext::shared_ptr<ReferenceDataManager>& refData,
                                 const std::string& tradeId, const std::string& tradeType);
 //@}
 
@@ -1115,7 +1118,7 @@ void applyAmortization(std::vector<Real>& notionals, const LegData& data, const 
                        const bool annuityAllowed = false, const std::vector<Real>& rates = std::vector<Real>());
 
 // apply indexing (if given in LegData) to existing leg
-void applyIndexing(Leg& leg, const LegData& data, const boost::shared_ptr<EngineFactory>& engineFactory,
+void applyIndexing(Leg& leg, const LegData& data, const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory,
                    RequiredFixings& requiredFixings, const QuantLib::Date& openEndDateReplacement = Null<Date>(),
                    const bool useXbsCurves = false);
 
@@ -1228,7 +1231,7 @@ Leg joinLegs(const std::vector<Leg>& legs);
 
 // build a notional leg for a given coupon leg, returns an empty Leg if not applicable
 Leg buildNotionalLeg(const LegData& data, const Leg& leg, RequiredFixings& requiredFixings,
-                     const boost::shared_ptr<Market>& market, const std::string& configuration);
+                     const QuantLib::ext::shared_ptr<Market>& market, const std::string& configuration);
 
 } // namespace data
 } // namespace ore
