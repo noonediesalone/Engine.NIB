@@ -1066,28 +1066,27 @@ std::pair<QuantLib::ext::shared_ptr<QuantLib::Instrument>, Date> ParSensitivityI
     Date settlementDate = payIndexCalendar.advance(payIndexCalendar.adjust(asof), payIndex->fixingDays() * Days);
 
     bool telescopicValueDates = true;
-    QuantLib::ext::shared_ptr<Swap> helper = QuantLib::ext::make_shared<TenorBasisSwap>(
+    auto helper = QuantLib::ext::make_shared<TenorBasisSwap>(
         settlementDate, 1.0, term, payIndex, 0.0, conv->payFrequency(), receiveIndex, 0.0, conv->receiveFrequency(),
         DateGeneration::Backward, conv->includeSpread(), conv->spreadOnRec(), conv->subPeriodsCouponType(),
         telescopicValueDates);
 
-    auto lastPayCoupon = QuantLib::ext::static_pointer_cast<TenorBasisSwap>(helper)->payLeg().back();
-    auto lastReceiveCoupon = QuantLib::ext::static_pointer_cast<TenorBasisSwap>(helper)->recLeg().back();
+    auto lastPayCoupon = helper->payLeg().back();
+    auto lastReceiveCoupon = helper->recLeg().back();
 
-    auto lastCouponDate = [](QuantLib::ext::shared_ptr<CashFlow> flow, Period freq, Calendar cal) -> Date { 
+    auto lastCouponDate = [](QuantLib::ext::shared_ptr<CashFlow> flow, Period freq, Calendar cal) -> Date {
         if (auto c = QuantLib::ext::dynamic_pointer_cast<IborCoupon>(flow))
             return c->fixingEndDate();
-
         Date d{};
         if (auto c = QuantLib::ext::dynamic_pointer_cast<SubPeriodsCoupon1>(flow))
             d = c->valueDates().back();
         else if (auto c = QuantLib::ext::dynamic_pointer_cast<QuantLib::OvernightIndexedCoupon>(flow)) {
             d = c->valueDates().back();
             freq = 1 * Days;
+        } else {
+            QL_FAIL("makeTenorBasisSwap(): Either IborCoupon, SubPeriodsCoupon1 or OvernightIndexedCoupon cashflow "
+                    "expected.");
         }
-        else
-            QL_FAIL("makeTenorBasisSwap(): Either IborCoupon, SubPeriodsCoupon1 or OvernightIndexedCoupon cashflow expected.");
-
         return cal.advance(d, freq);
     };
 
