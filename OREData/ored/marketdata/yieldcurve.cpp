@@ -39,6 +39,7 @@
 #include <ql/math/interpolations/convexmonotoneinterpolation.hpp>
 #include <ql/math/interpolations/mixedinterpolation.hpp>
 #include <qle/indexes/ibor/brlcdi.hpp>
+#include <qle/math/continuousinterpolation.hpp>
 #include <qle/math/logquadraticinterpolation.hpp>
 #include <qle/math/quadraticinterpolation.hpp>
 #include <qle/termstructures/averageoisratehelper.hpp>
@@ -150,6 +151,10 @@ QuantLib::ext::shared_ptr<YieldTermStructure> buildYieldCurve(const vector<Date>
                                  CubicInterpolation::SecondDerivative, 0.0, CubicInterpolation::SecondDerivative,
                                  0.0)));
          break;
+     case YieldCurve::InterpolationMethod::Continuous:
+         yieldts.reset(
+             new CurveType<QuantExt::ContinuousForward>(dates, rates, dayCounter, QuantExt::ContinuousForward()));
+         break;
 
      default:
          QL_FAIL("Interpolation method '" << interpolationMethod << "' not recognised.");
@@ -216,6 +221,8 @@ YieldCurve::InterpolationMethod parseYieldCurveInterpolationMethod(const string&
         return YieldCurve::InterpolationMethod::NelsonSiegel;
     else if (s == "Svensson")
         return YieldCurve::InterpolationMethod::Svensson;
+    else if (s == "Continuous")
+        return YieldCurve::InterpolationMethod::Continuous;
     else
         QL_FAIL("Yield curve interpolation method " << s << " not recognized");
 };
@@ -270,6 +277,8 @@ std::ostream& operator<<(std::ostream& out, const YieldCurve::InterpolationMetho
         return out << "NelsonSiegel";
     else if (m == YieldCurve::InterpolationMethod::Svensson)
         return out << "Svensson";
+    else if (m == YieldCurve::InterpolationMethod::Continuous)
+        return out << "Continuous";
     else
         QL_FAIL("Yield curve interpolation method " << static_cast<int>(m) << " not recognized");
 }
@@ -530,6 +539,13 @@ YieldCurve::piecewisecurve(vector<QuantLib::ext::shared_ptr<RateHelper>> instrum
                  my_curve::bootstrap_type(accuracy, globalAccuracy, dontThrow, maxAttempts, maxFactor,
                                                         minFactor, dontThrowSteps));
          } break;
+         case InterpolationMethod::Continuous: {
+             typedef PiecewiseYieldCurve<ZeroYield, QuantExt::ContinuousForward, QuantExt::IterativeBootstrap> my_curve;
+             yieldts = QuantLib::ext::make_shared<my_curve>(
+                 asofDate_, instruments, zeroDayCounter_, QuantExt::ContinuousForward(),
+                 my_curve::bootstrap_type(accuracy, globalAccuracy, dontThrow, maxAttempts, maxFactor, minFactor,
+                                          dontThrowSteps));
+         } break;
         default:
             QL_FAIL("Interpolation method '" << interpolationMethod_ << "' not recognised.");
         }
@@ -659,6 +675,13 @@ YieldCurve::piecewisecurve(vector<QuantLib::ext::shared_ptr<RateHelper>> instrum
                  my_curve::bootstrap_type(accuracy, globalAccuracy, dontThrow, maxAttempts, maxFactor,
                                                         minFactor, dontThrowSteps));
          } break;
+         case InterpolationMethod::Continuous: {
+             typedef PiecewiseYieldCurve<ZeroYield, QuantExt::ContinuousForward, QuantExt::IterativeBootstrap> my_curve;
+             yieldts = QuantLib::ext::make_shared<my_curve>(
+                 asofDate_, instruments, zeroDayCounter_, QuantExt::ContinuousForward(),
+                 my_curve::bootstrap_type(accuracy, globalAccuracy, dontThrow, maxAttempts, maxFactor, minFactor,
+                                          dontThrowSteps));
+         } break;
         default:
             QL_FAIL("Interpolation method '" << interpolationMethod_ << "' not recognised.");
         }
@@ -787,6 +810,13 @@ YieldCurve::piecewisecurve(vector<QuantLib::ext::shared_ptr<RateHelper>> instrum
                                      CubicInterpolation::SecondDerivative, 0.0),
                  my_curve::bootstrap_type(accuracy, globalAccuracy, dontThrow, maxAttempts, maxFactor,
                                                         minFactor, dontThrowSteps));
+         } break;
+         case InterpolationMethod::Continuous: {
+             typedef PiecewiseYieldCurve<ZeroYield, QuantExt::ContinuousForward, QuantExt::IterativeBootstrap> my_curve;
+             yieldts = QuantLib::ext::make_shared<my_curve>(
+                 asofDate_, instruments, zeroDayCounter_, QuantExt::ContinuousForward(),
+                 my_curve::bootstrap_type(accuracy, globalAccuracy, dontThrow, maxAttempts, maxFactor, minFactor,
+                                          dontThrowSteps));
          } break;
         default:
             QL_FAIL("Interpolation method '" << interpolationMethod_ << "' not recognised.");

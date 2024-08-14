@@ -227,6 +227,7 @@
 #include <qle/math/compiledformula.hpp>
 #include <qle/math/computeenvironment.hpp>
 #include <qle/math/constantinterpolation.hpp>
+#include <qle/math/continuousinterpolation.hpp>
 #include <qle/math/covariancesalvage.hpp>
 #include <qle/math/deltagammavar.hpp>
 #include <qle/math/differentialevolution_mt.hpp>

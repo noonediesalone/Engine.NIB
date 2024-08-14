@@ -83,7 +83,8 @@ public:
         LogMixedLinearCubicNaturalSpline,
         ExponentialSplines, // fitted bond curves only
         NelsonSiegel,       // fitted bond curves only
-        Svensson            // fitted bond curves only
+        Svensson,           // fitted bond curves only
+        Continuous
     };
 
     //! Constructor

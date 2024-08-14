@@ -89,10 +89,10 @@ in section \ref{sec:bootstrap_config} are used.
     ConvexMonotone & Convex Monotone Interpolation (Hagan, West) \\ \hline
     Quadratic & Quadratic interpolation \\ \hline
     LogQuadratic & Quadratic interpolation on the natural log of the interpolation variable \\ \hline
-    LogNaturalCubic & Monotonic Kruger cubic interpolation with zero second derivative at left and right \\hline
+    LogNaturalCubic & Monotonic Kruger cubic interpolation with zero second derivative at left and right \\ \hline
     LogFinancialCubic & Monotonic Kruger cubic interpolation with zero second derivative at left and 
-                     zero first derivative at right \\hline
-    LogCubicSpline & Non-monotonic cubic spline interpolation with zero second derivative at left and right \\hline
+                     zero first derivative at right \\ \hline
+    LogCubicSpline & Non-monotonic cubic spline interpolation with zero second derivative at left and right \\ \hline
     Hermite & Hermite cubic spline interpolation \\ \hline
     CubicSpline & Non-monotonic cubic spline interpolation with zero second derivative at left and right \\ \hline
     DefaultLogMixedLinearCubic & Mixed interpolation, first linear, then monotonic Kruger cubic spline \\ \hline
@@ -102,6 +102,7 @@ in section \ref{sec:bootstrap_config} are used.
     ExponentialSplines & Exponential Spline curve fitting, for Fitted Bond Curves only \\ \hline
     NelsonSiegel & Nelson-Siegel curve fitting, for Fitted Bond Curves only \\ \hline
     Svensson & Svensson curve fitting, for Fitted Bond Curves only \\ \hline
+    Continuous & Flat interpolation on the forward rate \\ \hline
   \end{tabular}
   \caption{Allowable interpolation methods.}
   \label{tab:allow_interp_methods}

@@ -24,6 +24,7 @@ commodityforward.cpp
 commodityschwartzmodel.cpp
 commodityspreadoption.cpp
 computeenvironment.cpp
+continuousinterpolation.cpp
 correlationtermstructure.cpp
 cpicapfloor.cpp
 cpileg.cpp

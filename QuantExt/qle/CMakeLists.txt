@@ -634,6 +634,7 @@ math/blockmatrixinverse.hpp
 math/bucketeddistribution.hpp
 math/compiledformula.hpp
 math/computeenvironment.hpp
+math/continuousinterpolation.hpp
 math/constantinterpolation.hpp
 math/covariancesalvage.hpp
 math/deltagammavar.hpp
