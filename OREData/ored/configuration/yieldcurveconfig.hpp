@@ -102,6 +102,13 @@ public:
     const vector<pair<string, bool>>& quotes() const { return quotes_; }
     //@}
 
+    //! \name Setters
+    //@{
+    QuantLib::Pillar::Choice& pillarChoice() { return pillarChoice_; }
+    Size& priority() { return priority_; }
+    Size& minDistance() { return minDistance_; }
+    //@}
+
     //! \name Visitability
     //@{
     virtual void accept(AcyclicVisitor&);
