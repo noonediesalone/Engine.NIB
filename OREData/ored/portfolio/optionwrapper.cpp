@@ -72,13 +72,22 @@ Real OptionWrapper::NPV() const {
 
     Date today = Settings::instance().evaluationDate();
     if (!exercised_) {
+        bool markExercised = false;
+        if (isPhysicalDelivery_ && today > effectiveExerciseDates_.back()) {
+            if (exercise())
+                markExercised = true;
+        }
         for (Size i = 0; i < effectiveExerciseDates_.size(); ++i) {
             if (today == effectiveExerciseDates_[i]) {
                 if (exercise()) {
-                    exercised_ = true;
-                    exerciseDate_ = today;
+                    markExercised = true;
+                    break;
                 }
             }
+        }
+        if (markExercised) {
+            exercised_ = true;
+            exerciseDate_ = today;
         }
     }
     if (exercised_) {
