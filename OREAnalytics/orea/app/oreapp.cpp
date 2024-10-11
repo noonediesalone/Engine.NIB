@@ -425,8 +425,7 @@ void OREApp::run() {
         analytics();
     } catch (std::exception& e) {
         StructuredAnalyticsWarningMessage("OREApp::run()", "Error", e.what()).log();
-        CONSOLE("Error: " << e.what());
-        return;
+        QL_FAIL("Error: " << e.what());
     }
 
     runTimer_.stop();
