@@ -387,6 +387,10 @@ void OREApp::initFromInputs() {
     outputPath_ = inputs_->resultsPath().string();
     setupLog(outputPath_, logFile_, logMask_, logRootPath_, progressLogFile_, progressLogRotationSize_, progressLogToConsole_,
              structuredLogFile_, structuredLogRotationSize_);
+
+    inputs_->loadCurrencyConfiguration();
+    inputs_->loadCalendarAdjustment();
+
     LOG("initFromInputs done, requested analytics:" << to_string(inputs_->analytics()));
 }
 
@@ -511,7 +515,6 @@ void OREApp::run(const std::vector<std::string>& marketData,
         MEM_LOG_USING_LEVEL(ORE_WARNING)
         CONSOLE(oss.str());
         QL_FAIL(oss.str());
-        return;
     }
 
     runTimer_.stop();

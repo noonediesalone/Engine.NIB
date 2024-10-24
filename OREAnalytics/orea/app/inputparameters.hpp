@@ -95,6 +95,8 @@ public:
     void setTodaysMarketParamsFromFile(const std::string& fileName);
     void setPortfolio(const std::string& xml); 
     void setPortfolioFromFile(const std::string& fileNameString, const std::filesystem::path& inputPath); 
+    void setCurrencyConfiguration(const std::string& s) { currencyConfiguration_ = s; }
+    void setCalendarAdjustment(const std::string& s) { calendarAdjustment_ = s; }
     void setMarketConfigs(const std::map<std::string, std::string>& m);
     void setThreads(int i) { nThreads_ = i; }
     void setEntireMarket(bool b) { entireMarket_ = b; }
@@ -421,6 +423,8 @@ public:
     void setAnalytics(const std::string& s); // parse to set<string>
     void insertAnalytic(const std::string& s); 
 
+    void loadCurrencyConfiguration();
+    void loadCalendarAdjustment();
 
 
     /***************************
@@ -435,6 +439,8 @@ public:
     bool buildFailedTrades() const { return buildFailedTrades_; }
     const std::string& observationModel() const { return observationModel_; }
     bool implyTodaysFixings() const { return implyTodaysFixings_; }
+    const std::string& currencyConfiguration() const { return currencyConfiguration_; }
+    const std::string& calendarAdjustment() const { return calendarAdjustment_; }
     const std::map<std::string, std::string>&  marketConfigs() const { return marketConfigs_; }
     const std::string& marketConfig(const std::string& context);
     const QuantLib::ext::shared_ptr<ore::data::BasicReferenceDataManager>& refDataManager() const { return refDataManager_; }
@@ -799,6 +805,8 @@ protected:
     bool buildFailedTrades_ = true;
     std::string observationModel_ = "None";
     bool implyTodaysFixings_ = false;
+    std::string currencyConfiguration_;
+    std::string calendarAdjustment_;
     std::map<std::string, std::string> marketConfigs_;
     QuantLib::ext::shared_ptr<ore::data::BasicReferenceDataManager> refDataManager_;
     QuantLib::ext::shared_ptr<ore::data::Conventions> conventions_;

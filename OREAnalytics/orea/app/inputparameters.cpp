@@ -588,6 +588,20 @@ void InputParameters::insertAnalytic(const std::string& s) {
     analytics_.insert(s);
 }
 
+void InputParameters::loadCurrencyConfiguration() {
+    if (currencyConfiguration_.empty())
+        return;
+    CurrencyConfig currencyConfig;
+    currencyConfig.fromXMLString(currencyConfiguration_);
+}
+
+void InputParameters::loadCalendarAdjustment() {
+    if (calendarAdjustment_.empty())
+        return;
+    CalendarAdjustmentConfig calendarAdjustments;
+    calendarAdjustments.fromXMLString(calendarAdjustment_);
+}
+
 OutputParameters::OutputParameters(const QuantLib::ext::shared_ptr<Parameters>& params) {
     LOG("OutputFileNameMap called");
     npvOutputFileName_ = params->get("npv", "outputFileName", false);
