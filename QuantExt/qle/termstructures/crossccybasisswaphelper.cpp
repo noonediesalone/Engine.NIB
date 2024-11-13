@@ -113,6 +113,8 @@ void CrossCcyBasisSwapHelper::initializeDates() {
 
     Date settlementDate = settlementCalendar_.advance(refDate, settlementDays_, Days);
     Date maturityDate = settlementDate + swapTenor_;
+    if (settlementCalendar_.adjust(maturityDate, rollConvention_) == settlementDate)
+        maturityDate = settlementCalendar_.advance(settlementDate, swapTenor_, rollConvention_);
 
     // calc spotFXSettleDate
     Date spotFXSettleDate = refDate;
