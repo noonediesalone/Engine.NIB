@@ -519,6 +519,9 @@ void OREApp::run(const std::vector<std::string>& marketData,
     }
 
     runTimer_.stop();
+
+    // cache the error messages because we reset the loggers
+    errorMessages_ = structuredLogger_->messages();
     
     LOG("ORE analytics done");
 }
