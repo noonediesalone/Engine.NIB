@@ -425,6 +425,7 @@ public:
 
     void loadCurrencyConfiguration();
     void loadCalendarAdjustment();
+    void loadScriptLibrary();
 
 
     /***************************
@@ -807,6 +808,7 @@ protected:
     bool implyTodaysFixings_ = false;
     std::string currencyConfiguration_;
     std::string calendarAdjustment_;
+    std::string scriptLibrary_;
     std::map<std::string, std::string> marketConfigs_;
     QuantLib::ext::shared_ptr<ore::data::BasicReferenceDataManager> refDataManager_;
     QuantLib::ext::shared_ptr<ore::data::Conventions> conventions_;

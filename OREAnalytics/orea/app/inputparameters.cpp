@@ -72,6 +72,7 @@ void InputParameters::setRefDataManagerFromFile(const std::string& fileName) {
 }
 
 void InputParameters::setScriptLibrary(const std::string& xml) {
+    scriptLibrary_ = xml;
     ScriptLibraryData data;
     data.fromXMLString(xml);
     ScriptLibraryStorage::instance().set(std::move(data));
@@ -80,8 +81,15 @@ void InputParameters::setScriptLibrary(const std::string& xml) {
 void InputParameters::setScriptLibraryFromFile(const std::string& fileName) {
     ScriptLibraryData data;
     data.fromFile(fileName);
+    scriptLibrary_ = data.toXMLString();
     ScriptLibraryStorage::instance().set(std::move(data));
 }
+
+void InputParameters::loadScriptLibrary() {
+    if (!scriptLibrary_.empty())
+        setScriptLibrary(scriptLibrary_);
+}
+
 
 void InputParameters::setConventions(const std::string& xml) {
     conventions_ = QuantLib::ext::make_shared<Conventions>();

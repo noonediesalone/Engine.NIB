@@ -390,6 +390,7 @@ void OREApp::initFromInputs() {
 
     inputs_->loadCurrencyConfiguration();
     inputs_->loadCalendarAdjustment();
+    inputs_->loadScriptLibrary();
 
     LOG("initFromInputs done, requested analytics:" << to_string(inputs_->analytics()));
 }
