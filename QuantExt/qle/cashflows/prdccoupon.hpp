@@ -21,7 +21,7 @@
 namespace QuantExt {
 using namespace QuantLib;
 
-class PrdcFixedCoupon : public QuantLib::Observer, public FixedRateCoupon, public FXLinked {
+class PrdcFixedCoupon : public FixedRateCoupon, public FXLinked {
 public:
     //! PrdcCoupon
     PrdcFixedCoupon(boost::shared_ptr<FxIndex> fxIndex, const boost::shared_ptr<FixedRateCoupon>& underlying,

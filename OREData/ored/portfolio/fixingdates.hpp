@@ -134,6 +134,8 @@ public:
 
         bool empty() const { return data_.empty(); }
 
+        const std::map<QuantLib::Date, bool>& data() const { return data_; }
+
     private:
         std::map<QuantLib::Date, bool> data_;
     };

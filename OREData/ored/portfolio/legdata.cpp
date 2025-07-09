@@ -82,6 +82,8 @@
 #include <ql/utilities/vectors.hpp>
 
 #include <boost/algorithm/string.hpp>
+#include <boost/assign.hpp>
+#include <boost/bimap.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 
@@ -92,6 +94,43 @@ namespace ore {
 namespace data {
 
 bool lessThan(const string& s1, const string& s2) { return s1 < s2; }
+
+// clang-format off
+const boost::bimap<string, LegType> legTypeMap =
+    boost::assign::list_of<boost::bimap<string, LegType>::value_type>
+    ("Fixed", LegType::Fixed)
+    ("Floating", LegType::Floating)
+    ("Cashflow", LegType::Cashflow)
+    ("CMS", LegType::CMS)
+    ("CMB", LegType::CMB)
+    ("PRDC", LegType::PRDC)
+    ("DigitalCMS", LegType::DigitalCMS)
+    ("DurationAdjustedCMS", LegType::DurationAdjustedCMS)
+    ("CMSSpread", LegType::CMSSpread)
+    ("DigitalCMSSpread", LegType::DigitalCMSSpread)
+    ("Equity", LegType::Equity)
+    ("CPI", LegType::CPI)
+    ("ZeroCouponFixed", LegType::ZeroCouponFixed)
+    ("FormulaBased", LegType::FormulaBased)
+    ("CommodityFloating", LegType::CommodityFloating)
+    ("CommodityFixed", LegType::CommodityFixed)
+    ("EquityMargin", LegType::EquityMargin)
+    ("YY", LegType::YY);
+// clang-format on
+
+LegType parseLegType(const std::string& legType)  {
+    if (legTypeMap.left.find(legType) != legTypeMap.left.end())
+        return legTypeMap.left.at(legType);
+
+    QL_FAIL("Could not parse leg type string '" << legType << "'");
+}
+
+std::ostream& operator<<(std::ostream& out, const LegType& legType) {
+    if (legTypeMap.right.find(legType) != legTypeMap.right.end())
+        return out << legTypeMap.right.at(legType);
+
+    QL_FAIL("Leg type not supported for operator<<");
+}
 
 void CashflowData::fromXML(XMLNode* node) {
     // allow for empty Cashflow legs without any payments
@@ -779,7 +818,7 @@ LegData::LegData(const QuantLib::ext::shared_ptr<LegAdditionalData>& concreteLeg
                  const std::vector<string>& notionalDates, const string& paymentConvention,
                  const bool notionalInitialExchange, const bool notionalFinalExchange,
                  const bool notionalAmortizingExchange, const bool isNotResetXCCY, const string& foreignCurrency,
-                 const double foreignAmount, const string& fxIndex,
+                 const double foreignAmount, const string& resetStartDate, const string& fxIndex,
                  const std::vector<AmortizationData>& amortizationData, const string& paymentLag,
                  const string& notionalPaymentLag, const string& paymentCalendar, const vector<string>& paymentDates,
                  const std::vector<Indexing>& indexing, const bool indexingFromAssetLeg,
@@ -789,7 +828,7 @@ LegData::LegData(const QuantLib::ext::shared_ptr<LegAdditionalData>& concreteLeg
       paymentConvention_(paymentConvention), notionalInitialExchange_(notionalInitialExchange),
       notionalFinalExchange_(notionalFinalExchange), notionalAmortizingExchange_(notionalAmortizingExchange),
       isNotResetXCCY_(isNotResetXCCY), foreignCurrency_(foreignCurrency), foreignAmount_(foreignAmount),
-      fxIndex_(fxIndex), amortizationData_(amortizationData), paymentLag_(paymentLag),
+      resetStartDate_(resetStartDate), fxIndex_(fxIndex), amortizationData_(amortizationData), paymentLag_(paymentLag),
       notionalPaymentLag_(notionalPaymentLag), paymentCalendar_(paymentCalendar), paymentDates_(paymentDates),
       indexing_(indexing), indexingFromAssetLeg_(indexingFromAssetLeg), lastPeriodDayCounter_(lastPeriodDayCounter) {
 
@@ -823,11 +862,22 @@ void LegData::fromXML(XMLNode* node) {
     if (auto tmp = XMLUtils::getChildNode(node, "Notionals")) {
         XMLNode* fxResetNode = XMLUtils::getChildNode(tmp, "FXReset");
         if (fxResetNode) {
-            isNotResetXCCY_ = false;
-            foreignCurrency_ = XMLUtils::getChildValue(fxResetNode, "ForeignCurrency", true);
-            foreignAmount_ = XMLUtils::getChildValueAsDouble(fxResetNode, "ForeignAmount", true);
-            fxIndex_ = XMLUtils::getChildValue(fxResetNode, "FXIndex", true);
-            indices_.insert(fxIndex_);
+            auto valuation_date = Settings::instance().evaluationDate();
+            resetStartDate_ = XMLUtils::getChildValue(fxResetNode, "StartDate", false);
+            if (resetStartDate_.empty()) {
+                isNotResetXCCY_ = false;
+                foreignAmount_ = XMLUtils::getChildValueAsDouble(fxResetNode, "ForeignAmount", true);
+                foreignCurrency_ = XMLUtils::getChildValue(fxResetNode, "ForeignCurrency", true);
+                fxIndex_ = XMLUtils::getChildValue(fxResetNode, "FXIndex", true);
+                indices_.insert(fxIndex_); 
+            } else {
+                if (valuation_date >= parseDate(resetStartDate_)) {
+                    isNotResetXCCY_ = false;
+                    foreignCurrency_ = XMLUtils::getChildValue(fxResetNode, "ForeignCurrency", true);
+                    fxIndex_ = XMLUtils::getChildValue(fxResetNode, "FXIndex", true);
+                    indices_.insert(fxIndex_);
+                }
+            }
             if (XMLUtils::getChildNode(node, "FixingDays")) {
                 WLOG("LegData::fromXML, node FixingDays has been deprecated, fixing days are "
                      "taken from conventions.");
@@ -903,7 +953,7 @@ QuantLib::ext::shared_ptr<LegAdditionalData> LegData::initialiseConcreteLegData(
 XMLNode* LegData::toXML(XMLDocument& doc) const {
     XMLNode* node = doc.allocNode("LegData");
     QL_REQUIRE(node, "Failed to create LegData node");
-    XMLUtils::addChild(doc, node, "LegType", legType());
+    XMLUtils::addChild(doc, node, "LegType", ore::data::to_string(legType()));
     XMLUtils::addChild(doc, node, "Payer", isPayer_);
     XMLUtils::addChild(doc, node, "Currency", currency_);
     if (paymentConvention_ != "")
@@ -922,7 +972,11 @@ XMLNode* LegData::toXML(XMLDocument& doc) const {
 
     if (!isNotResetXCCY_) {
         XMLNode* resetNode = doc.allocNode("FXReset");
-        XMLUtils::addChild(doc, resetNode, "ForeignCurrency", foreignCurrency_);
+        if (!resetStartDate_.empty()) {
+            XMLUtils::addChild(doc, resetNode, "StartDate", resetStartDate_);
+        } else {
+            XMLUtils::addChild(doc, resetNode, "ForeignCurrency", foreignCurrency_);
+        }
         XMLUtils::addChild(doc, resetNode, "ForeignAmount", foreignAmount_);
         XMLUtils::addChild(doc, resetNode, "FXIndex", fxIndex_);
         XMLUtils::appendNode(notionalsNodePtr, resetNode);
@@ -989,7 +1043,9 @@ Leg makeSimpleLeg(const LegData& data) {
     Leg leg;
     for (Size i = 0; i < dates.size(); i++) {
         Date d = parseDate(dates[i]);
-        leg.push_back(QuantLib::ext::shared_ptr<CashFlow>(new SimpleCashFlow(amounts[i], d)));
+        if (!data.paymentCalendar().empty() && !data.paymentConvention().empty())
+            d = parseCalendar(data.paymentCalendar()).adjust(d, parseBusinessDayConvention(data.paymentConvention()));
+        leg.push_back(QuantLib::ext::make_shared<SimpleCashFlow>(amounts[i], d));
     }
     return leg;
 }
@@ -1052,6 +1108,9 @@ Leg makeFixedLeg(const LegData& data, const QuantLib::Date& openEndDateReplaceme
 
     applyAmortization(notionals, data, schedule, true, rates);
 
+    auto n = schedule.size();
+    QL_REQUIRE(n >= 2, "Fixed leg must have 2 or more dates, found " << n << ".");
+
     // build leg
 
     if (!data.strictNotionalDates()) {
@@ -1099,6 +1158,9 @@ Leg makeZCFixedLeg(const LegData& data, const QuantLib::Date& openEndDateReplace
     QL_REQUIRE(zcFixedLegData, "Wrong LegType, expected Zero Coupon Fixed, got " << data.legType());
 
     Schedule schedule = makeSchedule(data.schedule(), openEndDateReplacement);
+    
+    auto n = schedule.size();
+    QL_REQUIRE(n >= 2, "Zero Coupon Fixed leg must have 2 or more dates, found " << n << ".");
 
     Calendar paymentCalendar;
     if (data.paymentCalendar().empty())
@@ -1110,7 +1172,9 @@ Leg makeZCFixedLeg(const LegData& data, const QuantLib::Date& openEndDateReplace
     PaymentLag paymentLag = parsePaymentLag(data.paymentLag());
     Natural paymentLagDays = boost::apply_visitor(PaymentLagInteger(), paymentLag);
 
-    DayCounter dc = parseDayCounter(data.dayCounter());
+    DayCounter dc = parseDayCounter(data.dayCounter() == "1/1" ? "Year" : data.dayCounter());
+    // Using '1/1' daycounter sets the exponent t in 'N * (1 + r) ^ t' to 1 regardless of length of the leg
+    // This often causing large unintended exposure differences, and so we override with 'Year' instead
 
     Size numNotionals = data.notionals().size();
     Size numRates = zcFixedLegData->rates().size();
@@ -1148,7 +1212,8 @@ Leg makeZCFixedLeg(const LegData& data, const QuantLib::Date& openEndDateReplace
 
 Leg makeIborLeg(const LegData& data, const QuantLib::ext::shared_ptr<IborIndex>& index,
                 const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer,
-                const QuantLib::Date& openEndDateReplacement) {
+                const QuantLib::Date& openEndDateReplacement,
+                std::set<std::tuple<std::set<std::string>, std::string, std::string>>* productModelEngines) {
 
     QuantLib::ext::shared_ptr<FloatingLegData> floatData = QuantLib::ext::dynamic_pointer_cast<FloatingLegData>(data.concreteLegData());
     QL_REQUIRE(floatData, "Wrong LegType, expected Floating, got " << data.legType());
@@ -1165,6 +1230,9 @@ Leg makeIborLeg(const LegData& data, const QuantLib::ext::shared_ptr<IborIndex>&
     scheduleBuilder.add(resetSchedule, floatData->resetSchedule());
     scheduleBuilder.add(paymentSchedule, data.paymentSchedule());
     scheduleBuilder.makeSchedules(openEndDateReplacement);
+
+    auto n = schedule.size();
+    QL_REQUIRE(n >= 2, "Floating (Ibor) leg must have 2 or more dates, found " << n << ".");
 
     // Get explicit payment dates, if given
 
@@ -1367,6 +1435,8 @@ Leg makeIborLeg(const LegData& data, const QuantLib::ext::shared_ptr<IborIndex>&
         auto cappedFlooredIborBuilder = QuantLib::ext::dynamic_pointer_cast<CapFlooredIborLegEngineBuilder>(builder);
         auto couponPricer = cappedFlooredIborBuilder->engine(IndexNameTranslator::instance().oreName(index->name()));
         QuantLib::setCouponPricer(tmpLeg, couponPricer);
+        if (productModelEngines)
+            productModelEngines->insert(std::make_tuple(builder->tradeTypes(), builder->model(), builder->engine()));
     }
 
     // build naked option leg if required
@@ -1382,7 +1452,8 @@ Leg makeIborLeg(const LegData& data, const QuantLib::ext::shared_ptr<IborIndex>&
 
 Leg makeOISLeg(const LegData& data, const QuantLib::ext::shared_ptr<OvernightIndex>& index,
                const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer,
-               const QuantLib::Date& openEndDateReplacement) {
+               const QuantLib::Date& openEndDateReplacement,
+               std::set<std::tuple<std::set<std::string>, std::string, std::string>>* productModelEngines) {
     QuantLib::ext::shared_ptr<FloatingLegData> floatData = QuantLib::ext::dynamic_pointer_cast<FloatingLegData>(data.concreteLegData());
     QL_REQUIRE(floatData, "Wrong LegType, expected Floating, got " << data.legType());
 
@@ -1402,6 +1473,8 @@ Leg makeOISLeg(const LegData& data, const QuantLib::ext::shared_ptr<OvernightInd
     }
 
     Schedule schedule = makeSchedule(tmp, openEndDateReplacement);
+    auto n = schedule.size();
+    QL_REQUIRE(n >= 2, "Floating (OIS) leg must have 2 or more dates, found " << n << ".");
     DayCounter dc = parseDayCounter(data.dayCounter());
     BusinessDayConvention bdc = parseBusinessDayConvention(data.paymentConvention());
     PaymentLag paymentLag = parsePaymentLag(data.paymentLag());
@@ -1453,6 +1526,10 @@ Leg makeOISLeg(const LegData& data, const QuantLib::ext::shared_ptr<OvernightInd
             cfCouponPricer = QuantLib::ext::dynamic_pointer_cast<CapFlooredAverageONIndexedCouponPricer>(
                 builder->engine(IndexNameTranslator::instance().oreName(index->name()), rateComputationPeriod));
             QL_REQUIRE(cfCouponPricer, "internal error, could not cast to CapFlooredAverageONIndexedCouponPricer");
+            if (productModelEngines)
+                productModelEngines->insert(
+                    std::make_tuple(builder->tradeTypes(), builder->model(),
+                                    QuantLib::ext::static_pointer_cast<EngineBuilder>(builder)->engine()));
         }
 
         QuantExt::AverageONLeg leg =
@@ -1498,6 +1575,10 @@ Leg makeOISLeg(const LegData& data, const QuantLib::ext::shared_ptr<OvernightInd
             cfCouponPricer = QuantLib::ext::dynamic_pointer_cast<QuantExt::CappedFlooredOvernightIndexedCouponPricer>(
                 builder->engine(IndexNameTranslator::instance().oreName(index->name()), rateComputationPeriod));
             QL_REQUIRE(cfCouponPricer, "internal error, could not cast to CapFlooredAverageONIndexedCouponPricer");
+            if (productModelEngines)
+                productModelEngines->insert(
+                    std::make_tuple(builder->tradeTypes(), builder->model(),
+                                    QuantLib::ext::static_pointer_cast<EngineBuilder>(builder)->engine()));
         }
 
         Leg leg = QuantExt::OvernightLeg(schedule, index)
@@ -1538,12 +1619,17 @@ Leg makeOISLeg(const LegData& data, const QuantLib::ext::shared_ptr<OvernightInd
 }
 
 Leg makeBMALeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantExt::BMAIndexWrapper>& indexWrapper,
-               const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const QuantLib::Date& openEndDateReplacement) {
+               const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory,
+               const QuantLib::Date& openEndDateReplacement, const bool attachPricer,
+               std::set<std::tuple<std::set<std::string>, std::string, std::string>>* productModelEngines) {
     QuantLib::ext::shared_ptr<FloatingLegData> floatData = QuantLib::ext::dynamic_pointer_cast<FloatingLegData>(data.concreteLegData());
     QL_REQUIRE(floatData, "Wrong LegType, expected Floating, got " << data.legType());
     QuantLib::ext::shared_ptr<BMAIndex> index = indexWrapper->bma();
 
     Schedule schedule = makeSchedule(data.schedule(), openEndDateReplacement);
+    auto n = schedule.size();
+    QL_REQUIRE(n >= 2, "Floating (BMA) leg must have 2 or more dates, found " << n << ".");
+
     DayCounter dc = parseDayCounter(data.dayCounter());
     BusinessDayConvention bdc = parseBusinessDayConvention(data.paymentConvention());
     Calendar paymentCalendar;
@@ -1586,12 +1672,18 @@ Leg makeBMALeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantExt::BM
     if (floatData->caps().size() > 0 || floatData->floors().size() > 0) {
 
         QuantLib::ext::shared_ptr<QuantExt::CapFlooredAverageBMACouponPricer> cfCouponPricer;
-        auto builder = QuantLib::ext::dynamic_pointer_cast<CapFlooredAverageBMACouponLegEngineBuilder>(
-            engineFactory->builder("CapFlooredAverageBMACouponLeg"));
-        QL_REQUIRE(builder, "No builder found for CapFlooredAverageBMACouponLeg");
-        cfCouponPricer = QuantLib::ext::dynamic_pointer_cast<CapFlooredAverageBMACouponPricer>(
-            builder->engine(IndexNameTranslator::instance().oreName(index->name()), rateComputationPeriod));
-        QL_REQUIRE(cfCouponPricer, "internal error, could not cast to CapFlooredAverageBMACouponPricer");
+        if (attachPricer) {
+            auto builder = QuantLib::ext::dynamic_pointer_cast<CapFlooredAverageBMACouponLegEngineBuilder>(
+                engineFactory->builder("CapFlooredAverageBMACouponLeg"));
+            QL_REQUIRE(builder, "No builder found for CapFlooredAverageBMACouponLeg");
+            cfCouponPricer = QuantLib::ext::dynamic_pointer_cast<CapFlooredAverageBMACouponPricer>(
+                builder->engine(IndexNameTranslator::instance().oreName(index->name()), rateComputationPeriod));
+            QL_REQUIRE(cfCouponPricer, "internal error, could not cast to CapFlooredAverageBMACouponPricer");
+            if (productModelEngines)
+                productModelEngines->insert(
+                    std::make_tuple(builder->tradeTypes(), builder->model(),
+                                    QuantLib::ext::static_pointer_cast<EngineBuilder>(builder)->engine()));
+        }
 
         for (Size i = 0; i < leg.size(); ++i) {
             auto bmaCpn = QuantLib::ext::dynamic_pointer_cast<AverageBMACoupon>(leg[i]);
@@ -1599,7 +1691,9 @@ Leg makeBMALeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantExt::BM
             if (caps[i] != Null<Real>() || floors[i] != Null<Real>()) {
                 auto cpn = QuantLib::ext::make_shared<CappedFlooredAverageBMACoupon>(
                     bmaCpn, caps[i], floors[i], floatData->nakedOption(), floatData->includeSpread());
-                cpn->setPricer(cfCouponPricer);
+                if (attachPricer) {
+                    cpn->setPricer(cfCouponPricer);
+                }
                 leg[i] = cpn;
             }
         }
@@ -1613,6 +1707,9 @@ Leg makeBMALeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantExt::BM
 Leg makeNotionalLeg(const Leg& refLeg, const bool initNomFlow, const bool finalNomFlow, const bool amortNomFlow,
                     const Natural notionalPaymentLag,  const BusinessDayConvention paymentConvention,
                     const Calendar paymentCalendar, const bool excludeIndexing) {
+
+    if (refLeg.empty())
+        return Leg();
 
     // Assumption - Cashflows on Input Leg are all coupons
     // This is the Leg to be populated
@@ -1661,7 +1758,9 @@ Leg makeNotionalLeg(const Leg& refLeg, const bool initNomFlow, const bool finalN
 }
 
 Leg makeCPILeg(const LegData& data, const QuantLib::ext::shared_ptr<ZeroInflationIndex>& index,
-               const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const QuantLib::Date& openEndDateReplacement) {
+               const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory,
+               const QuantLib::Date& openEndDateReplacement, const bool attachPricer,
+               std::set<std::tuple<std::set<std::string>, std::string, std::string>>* productModelEngines) {
 
     QuantLib::ext::shared_ptr<CPILegData> cpiLegData = QuantLib::ext::dynamic_pointer_cast<CPILegData>(data.concreteLegData());
     QL_REQUIRE(cpiLegData, "Wrong LegType, expected CPI, got " << data.legType());
@@ -1763,36 +1862,45 @@ Leg makeCPILeg(const LegData& data, const QuantLib::ext::shared_ptr<ZeroInflatio
     if (couponCapFloor || finalFlowCapFloor) {
         
         string indexName = cpiLegData->index();
-        
-        // get a coupon pricer for the leg
-        QuantLib::ext::shared_ptr<EngineBuilder> cpBuilder = engineFactory->builder("CappedFlooredCpiLegCoupons");
-        QL_REQUIRE(cpBuilder, "No builder found for CappedFlooredCpiLegCoupons");
-        QuantLib::ext::shared_ptr<CapFlooredCpiLegCouponEngineBuilder> cappedFlooredCpiCouponBuilder =
-            QuantLib::ext::dynamic_pointer_cast<CapFlooredCpiLegCouponEngineBuilder>(cpBuilder);
-        QuantLib::ext::shared_ptr<InflationCouponPricer> couponPricer = cappedFlooredCpiCouponBuilder->engine(indexName);
+        if (attachPricer) {
+            // get a coupon pricer for the leg
+            QuantLib::ext::shared_ptr<EngineBuilder> cpBuilder = engineFactory->builder("CappedFlooredCpiLegCoupons");
+            QL_REQUIRE(cpBuilder, "No builder found for CappedFlooredCpiLegCoupons");
+            QuantLib::ext::shared_ptr<CapFlooredCpiLegCouponEngineBuilder> cappedFlooredCpiCouponBuilder =
+                QuantLib::ext::dynamic_pointer_cast<CapFlooredCpiLegCouponEngineBuilder>(cpBuilder);
+            QuantLib::ext::shared_ptr<InflationCouponPricer> couponPricer = cappedFlooredCpiCouponBuilder->engine(indexName);
 
-        // get a cash flow pricer for the leg
-        QuantLib::ext::shared_ptr<EngineBuilder> cfBuilder = engineFactory->builder("CappedFlooredCpiLegCashFlows");
-        QL_REQUIRE(cfBuilder, "No builder found for CappedFlooredCpiLegCashFLows");
-        QuantLib::ext::shared_ptr<CapFlooredCpiLegCashFlowEngineBuilder> cappedFlooredCpiCashFlowBuilder =
-            QuantLib::ext::dynamic_pointer_cast<CapFlooredCpiLegCashFlowEngineBuilder>(cfBuilder);
-        QuantLib::ext::shared_ptr<InflationCashFlowPricer> cashFlowPricer = cappedFlooredCpiCashFlowBuilder->engine(indexName);
+            // get a cash flow pricer for the leg
+            QuantLib::ext::shared_ptr<EngineBuilder> cfBuilder = engineFactory->builder("CappedFlooredCpiLegCashFlows");
+            QL_REQUIRE(cfBuilder, "No builder found for CappedFlooredCpiLegCashFLows");
+            QuantLib::ext::shared_ptr<CapFlooredCpiLegCashFlowEngineBuilder> cappedFlooredCpiCashFlowBuilder =
+                QuantLib::ext::dynamic_pointer_cast<CapFlooredCpiLegCashFlowEngineBuilder>(cfBuilder);
+            QuantLib::ext::shared_ptr<InflationCashFlowPricer> cashFlowPricer = cappedFlooredCpiCashFlowBuilder->engine(indexName);
 
-        // set coupon pricer for the leg
-        for (Size i = 0; i < leg.size(); i++) {
-            // nothing to do for the plain CPI Coupon, because the pricer is already set when the leg builder is called
-            // nothing to do for the plain CPI CashFlow either, because it does not require a pricer
+            // set coupon pricer for the leg
+            for (Size i = 0; i < leg.size(); i++) {
+                // nothing to do for the plain CPI Coupon, because the pricer is already set when the leg builder is called
+                // nothing to do for the plain CPI CashFlow either, because it does not require a pricer
 
-            QuantLib::ext::shared_ptr<CappedFlooredCPICoupon> cfCpiCoupon =
-                QuantLib::ext::dynamic_pointer_cast<CappedFlooredCPICoupon>(leg[i]);
-            if (cfCpiCoupon && couponCapFloor) {
-                cfCpiCoupon->setPricer(couponPricer);
+                QuantLib::ext::shared_ptr<CappedFlooredCPICoupon> cfCpiCoupon =
+                    QuantLib::ext::dynamic_pointer_cast<CappedFlooredCPICoupon>(leg[i]);
+                if (cfCpiCoupon && couponCapFloor) {
+                    cfCpiCoupon->setPricer(couponPricer);
+                }
+
+                QuantLib::ext::shared_ptr<CappedFlooredCPICashFlow> cfCpiCashFlow =
+                    QuantLib::ext::dynamic_pointer_cast<CappedFlooredCPICashFlow>(leg[i]);
+                if (cfCpiCashFlow && finalFlowCapFloor && i == (leg.size() - 1)) {
+                    cfCpiCashFlow->setPricer(cashFlowPricer);
+                }
             }
-
-            QuantLib::ext::shared_ptr<CappedFlooredCPICashFlow> cfCpiCashFlow =
-                QuantLib::ext::dynamic_pointer_cast<CappedFlooredCPICashFlow>(leg[i]);
-            if (cfCpiCashFlow && finalFlowCapFloor && i == (leg.size() - 1)) {
-                cfCpiCashFlow->setPricer(cashFlowPricer);
+            if (productModelEngines) {
+                productModelEngines->insert(
+                    std::make_tuple(cpBuilder->tradeTypes(), cpBuilder->model(),
+                                    QuantLib::ext::static_pointer_cast<EngineBuilder>(cpBuilder)->engine()));
+                productModelEngines->insert(
+                    std::make_tuple(cfBuilder->tradeTypes(), cfBuilder->model(),
+                                    QuantLib::ext::static_pointer_cast<EngineBuilder>(cfBuilder)->engine()));
             }
         }
     }
@@ -1811,11 +1919,15 @@ Leg makeCPILeg(const LegData& data, const QuantLib::ext::shared_ptr<ZeroInflatio
 }
 
 Leg makeYoYLeg(const LegData& data, const QuantLib::ext::shared_ptr<InflationIndex>& index,
-               const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const QuantLib::Date& openEndDateReplacement) {
+               const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory,
+               const QuantLib::Date& openEndDateReplacement, const bool attachPricer,
+               std::set<std::tuple<std::set<std::string>, std::string, std::string>>* productModelEngines) {
     QuantLib::ext::shared_ptr<YoYLegData> yoyLegData = QuantLib::ext::dynamic_pointer_cast<YoYLegData>(data.concreteLegData());
     QL_REQUIRE(yoyLegData, "Wrong LegType, expected YoY, got " << data.legType());
 
     Schedule schedule = makeSchedule(data.schedule(), openEndDateReplacement);
+    auto n = schedule.size();
+    QL_REQUIRE(n >= 2, "YoY leg must have 2 or more dates, found " << n << ".");
     DayCounter dc = parseDayCounter(data.dayCounter());
     BusinessDayConvention bdc = parseBusinessDayConvention(data.paymentConvention());
     Calendar paymentCalendar;
@@ -1861,6 +1973,7 @@ Leg makeYoYLeg(const LegData& data, const QuantLib::ext::shared_ptr<InflationInd
     if (!irregularYoY) {
         auto yoyIndex = QuantLib::ext::dynamic_pointer_cast<YoYInflationIndex>(index);
         QL_REQUIRE(yoyIndex, "Need a YoY Inflation Index");
+        QL_DEPRECATED_DISABLE_WARNING
         QuantExt::yoyInflationLeg yoyLeg =
             QuantExt::yoyInflationLeg(schedule, paymentCalendar, yoyIndex, observationLag)
                 .withNotionals(notionals)
@@ -1872,7 +1985,7 @@ Leg makeYoYLeg(const LegData& data, const QuantLib::ext::shared_ptr<InflationInd
                 .withInflationNotional(addInflationNotional)
                 .withRateCurve(engineFactory->market()->discountCurve(
                     data.currency(), engineFactory->configuration(MarketContext::pricing)));
-
+        QL_DEPRECATED_ENABLE_WARNING
         if (couponCap)
             yoyLeg.withCaps(buildScheduledVector(yoyLegData->caps(), yoyLegData->capDates(), schedule));
 
@@ -1882,20 +1995,26 @@ Leg makeYoYLeg(const LegData& data, const QuantLib::ext::shared_ptr<InflationInd
         leg = yoyLeg.operator Leg();
 
         if (couponCapFloor) {
-            // get a coupon pricer for the leg
-            QuantLib::ext::shared_ptr<EngineBuilder> builder = engineFactory->builder("CapFlooredYYLeg");
-            QL_REQUIRE(builder, "No builder found for CapFlooredYYLeg");
-            QuantLib::ext::shared_ptr<CapFlooredYoYLegEngineBuilder> cappedFlooredYoYBuilder =
-                QuantLib::ext::dynamic_pointer_cast<CapFlooredYoYLegEngineBuilder>(builder);
-            string indexname = yoyLegData->index();
-            QuantLib::ext::shared_ptr<InflationCouponPricer> couponPricer =
-                cappedFlooredYoYBuilder->engine(IndexNameTranslator::instance().oreName(indexname));
+            if (attachPricer) {
+                // get a coupon pricer for the leg
+                QuantLib::ext::shared_ptr<EngineBuilder> builder = engineFactory->builder("CapFlooredYYLeg");
+                QL_REQUIRE(builder, "No builder found for CapFlooredYYLeg");
+                QuantLib::ext::shared_ptr<CapFlooredYoYLegEngineBuilder> cappedFlooredYoYBuilder =
+                    QuantLib::ext::dynamic_pointer_cast<CapFlooredYoYLegEngineBuilder>(builder);
+                string indexname = yoyLegData->index();
+                QuantLib::ext::shared_ptr<InflationCouponPricer> couponPricer =
+                    cappedFlooredYoYBuilder->engine(IndexNameTranslator::instance().oreName(indexname));
 
-            // set coupon pricer for the leg
+                // set coupon pricer for the leg
 
-            for (Size i = 0; i < leg.size(); i++) {
-                QuantLib::ext::dynamic_pointer_cast<QuantExt::CappedFlooredYoYInflationCoupon>(leg[i])->setPricer(
-                    QuantLib::ext::dynamic_pointer_cast<QuantLib::YoYInflationCouponPricer>(couponPricer));
+                for (Size i = 0; i < leg.size(); i++) {
+                    QuantLib::ext::dynamic_pointer_cast<QuantExt::CappedFlooredYoYInflationCoupon>(leg[i])->setPricer(
+                        QuantLib::ext::dynamic_pointer_cast<QuantLib::YoYInflationCouponPricer>(couponPricer));
+                }
+                if(productModelEngines)
+                    productModelEngines->insert(
+                        std::make_tuple(builder->tradeTypes(), builder->model(),
+                                        QuantLib::ext::static_pointer_cast<EngineBuilder>(builder)->engine()));
             }
 
             // build naked option leg if required
@@ -1935,20 +2054,27 @@ Leg makeYoYLeg(const LegData& data, const QuantLib::ext::shared_ptr<InflationInd
         leg = yoyLeg.operator Leg();
 
         if (couponCapFloor) {
-            // get a coupon pricer for the leg
-            QuantLib::ext::shared_ptr<EngineBuilder> builder = engineFactory->builder("CapFlooredNonStdYYLeg");
-            QL_REQUIRE(builder, "No builder found for CapFlooredNonStdYYLeg");
-            QuantLib::ext::shared_ptr<CapFlooredNonStandardYoYLegEngineBuilder> cappedFlooredYoYBuilder =
-                QuantLib::ext::dynamic_pointer_cast<CapFlooredNonStandardYoYLegEngineBuilder>(builder);
-            string indexname = zcIndex->name();
-            QuantLib::ext::shared_ptr<InflationCouponPricer> couponPricer =
-                cappedFlooredYoYBuilder->engine(IndexNameTranslator::instance().oreName(indexname));
+            if (attachPricer) {
+                // get a coupon pricer for the leg
+                QuantLib::ext::shared_ptr<EngineBuilder> builder = engineFactory->builder("CapFlooredNonStdYYLeg");
+                QL_REQUIRE(builder, "No builder found for CapFlooredNonStdYYLeg");
+                QuantLib::ext::shared_ptr<CapFlooredNonStandardYoYLegEngineBuilder> cappedFlooredYoYBuilder =
+                    QuantLib::ext::dynamic_pointer_cast<CapFlooredNonStandardYoYLegEngineBuilder>(builder);
+                string indexname = zcIndex->name();
+                QuantLib::ext::shared_ptr<InflationCouponPricer> couponPricer =
+                    cappedFlooredYoYBuilder->engine(IndexNameTranslator::instance().oreName(indexname));
 
-            // set coupon pricer for the leg
+                // set coupon pricer for the leg
 
-            for (Size i = 0; i < leg.size(); i++) {
-                QuantLib::ext::dynamic_pointer_cast<QuantExt::NonStandardCappedFlooredYoYInflationCoupon>(leg[i])->setPricer(
-                    QuantLib::ext::dynamic_pointer_cast<QuantExt::NonStandardYoYInflationCouponPricer>(couponPricer));
+                for (Size i = 0; i < leg.size(); i++) {
+                    QuantLib::ext::dynamic_pointer_cast<QuantExt::NonStandardCappedFlooredYoYInflationCoupon>(leg[i])->setPricer(
+                        QuantLib::ext::dynamic_pointer_cast<QuantExt::NonStandardYoYInflationCouponPricer>(couponPricer));
+                }
+
+                if (productModelEngines)
+                    productModelEngines->insert(
+                        std::make_tuple(builder->tradeTypes(), builder->model(),
+                                        QuantLib::ext::static_pointer_cast<EngineBuilder>(builder)->engine()));
             }
 
             // build naked option leg if required
@@ -1965,11 +2091,14 @@ Leg makeYoYLeg(const LegData& data, const QuantLib::ext::shared_ptr<InflationInd
 
 Leg makeCMSLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantLib::SwapIndex>& swapIndex,
                const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer,
-               const QuantLib::Date& openEndDateReplacement) {
+               const QuantLib::Date& openEndDateReplacement,
+               std::set<std::tuple<std::set<std::string>, std::string, std::string>>* productModelEngines) {
     QuantLib::ext::shared_ptr<CMSLegData> cmsData = QuantLib::ext::dynamic_pointer_cast<CMSLegData>(data.concreteLegData());
     QL_REQUIRE(cmsData, "Wrong LegType, expected CMS, got " << data.legType());
 
     Schedule schedule = makeSchedule(data.schedule(), openEndDateReplacement);
+    auto n = schedule.size();
+    QL_REQUIRE(n >= 2, "CMS leg must have 2 or more dates, found " << n << ".");
     DayCounter dc = parseDayCounter(data.dayCounter());
     BusinessDayConvention bdc = parseBusinessDayConvention(data.paymentConvention());
     Calendar paymentCalendar;
@@ -2017,6 +2146,11 @@ Leg makeCMSLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantLib::Sw
     QuantLib::ext::shared_ptr<FloatingRateCouponPricer> couponPricer =
         cmsSwapBuilder->engine(IndexNameTranslator::instance().oreName(swapIndex->iborIndex()->name()));
 
+    if (productModelEngines)
+        productModelEngines->insert(
+            std::make_tuple(builder->tradeTypes(), builder->model(),
+                            QuantLib::ext::static_pointer_cast<EngineBuilder>(builder)->engine()));
+
     // Loop over the coupons in the leg and set pricer
     Leg tmpLeg = cmsLeg;
     QuantLib::setCouponPricer(tmpLeg, couponPricer);
@@ -2028,8 +2162,8 @@ Leg makeCMSLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantLib::Sw
     return tmpLeg;
 }
 
-Leg makeCMBLeg(const LegData& data, const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer,
-               const QuantLib::Date& openEndDateReplacement) {
+Leg makeCMBLeg(const LegData& data, const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory,
+               const bool attachPricer, const QuantLib::Date& openEndDateReplacement) {
     QuantLib::ext::shared_ptr<CMBLegData> cmbData = QuantLib::ext::dynamic_pointer_cast<CMBLegData>(data.concreteLegData());
     QL_REQUIRE(cmbData, "Wrong LegType, expected CMB, got " << data.legType());
 
@@ -2048,6 +2182,8 @@ Leg makeCMBLeg(const LegData& data, const QuantLib::ext::shared_ptr<EngineFactor
     LOG("Generic bond id " << bondIndexName << " has family " << securityFamily << " and term " << underlyingPeriod);
 
     Schedule schedule = makeSchedule(data.schedule());
+    auto n = schedule.size();
+    QL_REQUIRE(n >= 2, "CMB leg must have 2 or more dates, found " << n << ".");
     Calendar calendar = schedule.calendar();
     int fixingDays = cmbData->fixingDays();
     BusinessDayConvention convention = schedule.businessDayConvention();
@@ -2141,6 +2277,10 @@ Leg makeCMBLeg(const LegData& data, const QuantLib::ext::shared_ptr<EngineFactor
 	    = QuantLib::ext::make_shared<CmbCoupon>(paymentDate, notionals[i], schedule[i], schedule[i + 1],
 					    cmbData->fixingDays(), bondIndices[i], gearings[i], spreads[i], Date(), Date(),
 					    dayCounter, cmbData->isInArrears());	
+
+    if (!attachPricer)
+        return leg;
+
 	auto pricer = QuantLib::ext::make_shared<CmbCouponPricer>();
 	coupon->setPricer(pricer);
 	leg.push_back(coupon);
@@ -2151,7 +2291,8 @@ Leg makeCMBLeg(const LegData& data, const QuantLib::ext::shared_ptr<EngineFactor
 
 Leg makeDigitalCMSLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantLib::SwapIndex>& swapIndex,
                       const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer,
-                      const QuantLib::Date& openEndDateReplacement) {
+                      const QuantLib::Date& openEndDateReplacement,
+                      std::set<std::tuple<std::set<std::string>, std::string, std::string>>* productModelEngines) {
     auto digitalCmsData = QuantLib::ext::dynamic_pointer_cast<DigitalCMSLegData>(data.concreteLegData());
     QL_REQUIRE(digitalCmsData, "Wrong LegType, expected DigitalCMS");
 
@@ -2159,6 +2300,8 @@ Leg makeDigitalCMSLeg(const LegData& data, const QuantLib::ext::shared_ptr<Quant
     QL_REQUIRE(cmsData, "Incomplete DigitalCms Leg, expected CMS data");
 
     Schedule schedule = makeSchedule(data.schedule(), openEndDateReplacement);
+    auto n = schedule.size();
+    QL_REQUIRE(n >= 2, "DigitalCMS leg must have 2 or more dates, found " << n << ".");
 
     DayCounter dc = parseDayCounter(data.dayCounter());
     BusinessDayConvention bdc = parseBusinessDayConvention(data.paymentConvention());
@@ -2224,6 +2367,11 @@ Leg makeDigitalCMSLeg(const LegData& data, const QuantLib::ext::shared_ptr<Quant
         cmsBuilder->engine(IndexNameTranslator::instance().oreName(swapIndex->iborIndex()->name())));
     QL_REQUIRE(cmsPricer, "Expected CMS Pricer");
 
+    if (productModelEngines)
+        productModelEngines->insert(
+            std::make_tuple(builder->tradeTypes(), builder->model(),
+                            QuantLib::ext::static_pointer_cast<EngineBuilder>(builder)->engine()));
+
     // Loop over the coupons in the leg and set pricer
     Leg tmpLeg = digitalCmsLeg;
     QuantLib::setCouponPricer(tmpLeg, cmsPricer);
@@ -2233,12 +2381,15 @@ Leg makeDigitalCMSLeg(const LegData& data, const QuantLib::ext::shared_ptr<Quant
 
 Leg makeCMSSpreadLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantLib::SwapSpreadIndex>& swapSpreadIndex,
                      const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const bool attachPricer,
-                     const QuantLib::Date& openEndDateReplacement) {
+                     const QuantLib::Date& openEndDateReplacement,
+                     std::set<std::tuple<std::set<std::string>, std::string, std::string>>* productModelEngines) {
     QuantLib::ext::shared_ptr<CMSSpreadLegData> cmsSpreadData =
         QuantLib::ext::dynamic_pointer_cast<CMSSpreadLegData>(data.concreteLegData());
     QL_REQUIRE(cmsSpreadData, "Wrong LegType, expected CMSSpread, got " << data.legType());
 
     Schedule schedule = makeSchedule(data.schedule(), openEndDateReplacement);
+    auto n = schedule.size();
+    QL_REQUIRE(n >= 2, "CMSSpread leg must have 2 or more dates, found " << n << ".");
     DayCounter dc = parseDayCounter(data.dayCounter());
     BusinessDayConvention bdc = parseBusinessDayConvention(data.paymentConvention());
     Calendar paymentCalendar;
@@ -2293,6 +2444,11 @@ Leg makeCMSSpreadLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantL
                                                     cmsSpreadData->swapIndex2(), cmsPricer);
     QL_REQUIRE(cmsSpreadPricer, "Expected CMS Spread Pricer");
 
+    if (productModelEngines) {
+        productModelEngines->insert(std::make_tuple(builder1->tradeTypes(), builder1->model(), builder1->engine()));
+        productModelEngines->insert(std::make_tuple(builder2->tradeTypes(), builder2->model(), builder2->engine()));
+    }
+
     // Loop over the coupons in the leg and set pricer
     Leg tmpLeg = cmsSpreadLeg;
     QuantLib::setCouponPricer(tmpLeg, cmsSpreadPricer);
@@ -2304,9 +2460,11 @@ Leg makeCMSSpreadLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantL
     return tmpLeg;
 }
 
-Leg makeDigitalCMSSpreadLeg(const LegData& data, const QuantLib::ext::shared_ptr<QuantLib::SwapSpreadIndex>& swapSpreadIndex,
-                            const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory,
-                            const QuantLib::Date& openEndDateReplacement) {
+Leg makeDigitalCMSSpreadLeg(
+    const LegData& data, const QuantLib::ext::shared_ptr<QuantLib::SwapSpreadIndex>& swapSpreadIndex,
+    const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory, const QuantLib::Date& openEndDateReplacement,
+    const bool attachPricer,
+    std::set<std::tuple<std::set<std::string>, std::string, std::string>>* productModelEngines) {
     auto digitalCmsSpreadData = QuantLib::ext::dynamic_pointer_cast<DigitalCMSSpreadLegData>(data.concreteLegData());
     QL_REQUIRE(digitalCmsSpreadData, "Wrong LegType, expected DigitalCMSSpread");
 
@@ -2314,6 +2472,9 @@ Leg makeDigitalCMSSpreadLeg(const LegData& data, const QuantLib::ext::shared_ptr
     QL_REQUIRE(cmsSpreadData, "Incomplete DigitalCmsSpread Leg, expected CMSSpread data");
 
     Schedule schedule = makeSchedule(data.schedule(), openEndDateReplacement);
+    auto n = schedule.size();
+    QL_REQUIRE(n >= 2, "DigitalCMSSpread leg must have 2 or more dates, found " << n << ".");
+
     DayCounter dc = parseDayCounter(data.dayCounter());
     BusinessDayConvention bdc = parseBusinessDayConvention(data.paymentConvention());
 
@@ -2375,6 +2536,9 @@ Leg makeDigitalCMSSpreadLeg(const LegData& data, const QuantLib::ext::shared_ptr
     if (cmsSpreadData->caps().size() > 0 || cmsSpreadData->floors().size() > 0)
         QL_FAIL("caps/floors not supported in DigitalCMSSpreadOptions");
 
+    if (!attachPricer)
+        return digitalCmsSpreadLeg;
+
     // Get a coupon pricer for the leg
     auto builder1 = engineFactory->builder("CMS");
     QL_REQUIRE(builder1, "No CMS builder found for CmsSpreadLeg");
@@ -2388,6 +2552,11 @@ Leg makeDigitalCMSSpreadLeg(const LegData& data, const QuantLib::ext::shared_ptr
     auto cmsSpreadPricer = cmsSpreadBuilder->engine(swapSpreadIndex->currency(), cmsSpreadData->swapIndex1(),
                                                     cmsSpreadData->swapIndex2(), cmsPricer);
     QL_REQUIRE(cmsSpreadPricer, "Expected CMS Spread Pricer");
+
+    if (productModelEngines) {
+        productModelEngines->insert(std::make_tuple(builder1->tradeTypes(), builder1->model(), builder1->engine()));
+        productModelEngines->insert(std::make_tuple(builder2->tradeTypes(), builder2->model(), builder2->engine()));
+    }
 
     // Loop over the coupons in the leg and set pricer
     Leg tmpLeg = digitalCmsSpreadLeg;
@@ -2449,6 +2618,8 @@ Leg makeEquityLeg(const LegData& data, const QuantLib::ext::shared_ptr<EquityInd
         scheduleBuilder.add(valuationSchedule, valuationData);
 
     scheduleBuilder.makeSchedules(openEndDateReplacement);
+    auto n = schedule.size();
+    QL_REQUIRE(n >= 2, "Equity leg must have 2 or more dates, found " << n << ".");
 
     vector<double> notionals = buildScheduledVector(data.notionals(), data.notionalDates(), schedule);
 
@@ -2776,9 +2947,9 @@ void applyIndexing(Leg& leg, const LegData& data, const QuantLib::ext::shared_pt
                 QL_REQUIRE(!(QuantLib::ext::dynamic_pointer_cast<BondFuturesIndex>(bi)),
                            "BondFuture Legs are not yet supported");
                 BondData bondData(bi->securityName(), 1.0);
-                BondIndexBuilder bondIndexBuilder(bondData, indexing.indexIsDirty(), indexing.indexIsRelative(),
-                                       parseCalendar(indexing.fixingCalendar()),
-                                       indexing.indexIsConditionalOnSurvival(), engineFactory);
+                BondIndexBuilder bondIndexBuilder(bondData.securityId(), indexing.indexIsDirty(),
+                                                  indexing.indexIsRelative(), parseCalendar(indexing.fixingCalendar()),
+                                                  indexing.indexIsConditionalOnSurvival(), engineFactory);
                 index = bondIndexBuilder.bondIndex();
                 bondIndexBuilder.addRequiredFixings(requiredFixings, leg);
             } else {
@@ -2921,7 +3092,7 @@ Leg buildNotionalLeg(const LegData& data, const Leg& leg, RequiredFixings& requi
         return resettingLeg;
 
     } else if ((data.notionalInitialExchange() || data.notionalFinalExchange() || data.notionalAmortizingExchange()) &&
-               (data.legType() != "CPI")) {
+               (data.legType() != LegType::CPI)) {
 
         // check for notional exchanges on non FX reseting trades
 
@@ -2976,6 +3147,7 @@ getCmbLegCreditQualifierMapping(const CMBLegData& ld, const QuantLib::ext::share
         source = ore::data::securitySpecificCreditCurveName(security, bondRefData->bondData().creditCurveId);
         target.targetQualifier = security;
         target.creditGroup = bondRefData->bondData().creditGroup;
+        target.hasCreditRisk = ld.hasCreditRisk();
     }
     if (source.empty() || target.targetQualifier.empty()) {
         ore::data::StructuredTradeErrorMessage(tradeId, tradeType, "getCmbLegCreditQualifierMapping()",

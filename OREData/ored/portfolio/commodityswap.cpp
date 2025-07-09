@@ -76,17 +76,17 @@ void CommoditySwap::build(const QuantLib::ext::shared_ptr<EngineFactory>& engine
     // the map entry gets overwritten and the fixed leg with empty tag matches a random floating leg with empty tag. 
     // This is by design i.e. use tags if you want to link specific legs.
     map<string, Leg> floatingLegs;
-    vector<Size> legsIdx;
+    std::vector<Size> legsIdx(legData_.size());
     for (Size t = 0; t < legData_.size(); t++) {
         const auto& legDatum = legData_.at(t);
 
-        const string& type = legDatum.legType();
-        if (type == "CommodityFixed")
+        const LegType& type = legDatum.legType();
+        if (type == LegType::CommodityFixed)
             continue;
 
         // Build the leg and add it to legs_
         buildLeg(engineFactory, legDatum, configuration);
-        legsIdx.push_back(t);
+        legsIdx[t] = legs_.size() - 1;
 
         // Only add to map if CommodityFloatingLegData
         if (auto cfld = QuantLib::ext::dynamic_pointer_cast<CommodityFloatingLegData>(legDatum.concreteLegData())) {
@@ -101,8 +101,8 @@ void CommoditySwap::build(const QuantLib::ext::shared_ptr<EngineFactory>& engine
         // take a copy, since we might modify the leg datum below
         auto effLegDatum = legDatum;
 
-        const string& type = effLegDatum.legType();
-        if (type != "CommodityFixed")
+        const LegType& type = effLegDatum.legType();
+        if (type != LegType::CommodityFixed)
             continue;
 
         // Update the commodity fixed leg quantities if necessary.
@@ -148,7 +148,7 @@ void CommoditySwap::build(const QuantLib::ext::shared_ptr<EngineFactory>& engine
 
         // Build the leg and add it to legs_
         buildLeg(engineFactory, effLegDatum, configuration);
-        legsIdx.push_back(t);
+        legsIdx[t] = legs_.size() - 1;
     }
 
     // Reposition the leg-based data to match the original order according to legData_
@@ -160,15 +160,17 @@ void CommoditySwap::build(const QuantLib::ext::shared_ptr<EngineFactory>& engine
         legPayersTmp.push_back(legPayers_.at(idx));
         legCurrenciesTmp.push_back(legCurrencies_.at(idx));
     }
-    legs_ = legsTmp;
-    legPayers_ = legPayersTmp;
-    legCurrencies_ = legCurrenciesTmp;
+    legs_.swap(legsTmp);
+    legPayers_.swap(legPayersTmp);
+    legCurrencies_.swap(legCurrenciesTmp);
 
     // Create the QuantLib swap instrument and assign pricing engine
     auto swap = QuantLib::ext::make_shared<QuantLib::Swap>(legs_, legPayers_);
-    QuantLib::ext::shared_ptr<PricingEngine> engine = engineBuilder->engine(parseCurrency(npvCurrency_));
+    QuantLib::ext::shared_ptr<PricingEngine> engine = engineBuilder->engine(parseCurrency(npvCurrency_),
+        envelope().additionalField("discount_curve", false, std::string()));
     swap->setPricingEngine(engine);
     setSensitivityTemplate(*engineBuilder);
+    addProductModelEngine(*engineBuilder);
     instrument_ = QuantLib::ext::make_shared<VanillaInstrument>(swap);
 }
 
@@ -179,7 +181,7 @@ const std::map<std::string,boost::any>& CommoditySwap::additionalData() const {
     QuantLib::ext::shared_ptr<QuantLib::Swap> swap = QuantLib::ext::dynamic_pointer_cast<QuantLib::Swap>(instrument_->qlInstrument());
     for (Size i = 0; i < numLegs; ++i) {
         string legID = to_string(i+1);
-        additionalData_["legType[" + legID + "]"] = legData_[i].legType();
+        additionalData_["legType[" + legID + "]"] = ore::data::to_string(legData_[i].legType());
         additionalData_["isPayer[" + legID + "]"] = legData_[i].isPayer();
         additionalData_["currency[" + legID + "]"] = legData_[i].currency();
         if (swap)
@@ -197,6 +199,7 @@ const std::map<std::string,boost::any>& CommoditySwap::additionalData() const {
                     additionalData_["quantity[" + label + "]"] = indexedFlow->quantity();
                     additionalData_["periodQuantity[" + label + "]"] = indexedFlow->periodQuantity();
                     additionalData_["gearing[" + label + "]"] = indexedFlow->gearing();
+                    additionalData_["spread[" + label + "]"] = indexedFlow->spread();
                     if (indexedFlow->isAveragingFrontMonthCashflow(asof)) {
                         std::vector<Real> priceVec;
                         std::vector<std::string> indexVec;
@@ -242,22 +245,20 @@ const std::map<std::string,boost::any>& CommoditySwap::additionalData() const {
                     additionalData_["quantity[" + label + "]"] = indexedAvgFlow->quantity();
                     additionalData_["periodQuantity[" + label + "]"] = indexedAvgFlow->periodQuantity();
                     additionalData_["gearing[" + label + "]"] = indexedAvgFlow->gearing();
+                    additionalData_["spread[" + label + "]"] = indexedAvgFlow->spread();
                     std::vector<Real> priceVec;
                     std::vector<std::string> indexVec;
                     std::vector<Date> indexExpiryVec, pricingDateVec;
-                    double averagePrice = 0;
                     for (const auto& kv : indexedAvgFlow->indices()) {
                         indexVec.push_back(kv.second->name());
                         indexExpiryVec.push_back(kv.second->expiryDate());
                         pricingDateVec.push_back(kv.first);
                         priceVec.push_back(kv.second->fixing(kv.first));
-                        averagePrice += priceVec.back();
                     }
-                    averagePrice /= indexedAvgFlow->indices().size();
                     additionalData_["index[" + label + "]"] = indexVec;
                     additionalData_["indexExpiry[" + label + "]"] = indexExpiryVec;
                     additionalData_["price[" + label + "]"] = priceVec;
-                    additionalData_["averagePrice[" + label + "]"] = averagePrice;
+                    additionalData_["averagePrice[" + label + "]"] = indexedAvgFlow->fixing();
                     additionalData_["pricingDate[" + label + "]"] = pricingDateVec;
                     additionalData_["paymentDate[" + label + "]"] = to_string(indexedAvgFlow->date());
                 }
@@ -375,7 +376,9 @@ void CommoditySwap::buildLeg(const QuantLib::ext::shared_ptr<EngineFactory>& ef,
     legCurrencies_.push_back(legDatum.currency());
 
     // Update maturity
-    maturity_ = max(CashFlows::maturityDate(leg), maturity_);
+    maturity_ = std::max(CashFlows::maturityDate(leg), maturity_);
+    if (maturity_ == CashFlows::maturityDate(leg))
+        maturityType_ = "Leg Maturity Date";
 
 }
 
