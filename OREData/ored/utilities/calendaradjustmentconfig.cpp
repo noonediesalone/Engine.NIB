@@ -97,7 +97,11 @@ void CalendarAdjustmentConfig::append(const CalendarAdjustmentConfig& c) {
 void CalendarAdjustmentConfig::addCalendars() {
     for (auto cal : baseCalendars_) {
         string calname = cal.first;
-        CalendarParser::instance().addCalendar(cal.second, calname);
+        Calendar calendar = CalendarParser::instance().addCalendar(cal.second, calname);
+        for (const auto& h : getHolidays(calname))
+            calendar.addHoliday(h);
+        for (const auto& h : getBusinessDays(calname))
+            calendar.removeHoliday(h);
     }
 }
 
