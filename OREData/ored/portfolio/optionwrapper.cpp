@@ -80,36 +80,52 @@ void OptionWrapper::reset() {
 
 Real OptionWrapper::NPV() const {
     Real addNPV = additionalInstrumentsNPV();
-
     Date today = Settings::instance().evaluationDate();
-    if (!exercised_) {
 
-        bool isExerciseDate = false;
-        for (Size i = 0; i < effectiveExerciseDates_.size(); ++i) {
-            if (today == effectiveExerciseDates_[i]) {
-                isExerciseDate = true;
-                break;
+    const bool canExercise = exercise();
+    const bool isTodayExerciseDate = std::find(effectiveExerciseDates_.begin(), effectiveExerciseDates_.end(), today) !=
+                                     effectiveExerciseDates_.end();
+    const bool isPastLastExerciseDate = isPhysicalDelivery_ && today > effectiveExerciseDates_.back();
+
+    const bool isEffectiveExercise = isTodayExerciseDate || isPastLastExerciseDate;
+
+    auto updateCacheNPV = [&]() { cachedNpv_ = multiplier2() * getTimedNPV(instrument_) * multiplier_; };
+
+    auto exerciseOption = [&]() -> bool {
+        if (!canExercise)
+            return false;
+
+        Size index = Null<Size>();
+
+        if (isPastLastExerciseDate) {
+            index = effectiveExerciseDates_.size() - 1;
+        } else {
+            for (Size i = 0; i < effectiveExerciseDates_.size(); ++i) {
+                if (today == effectiveExerciseDates_[i]) {
+                    index = i;
+                    break;
+                }
             }
         }
 
-        if (!isExerciseDate) {
-            // Cache NPV along the path for later exercise with cash settlement,
-            // i.e. as a proxy for the cash settlement amount if the instrument isn't priced on exercise date anymore
-            cachedNpv_ = multiplier2() * getTimedNPV(instrument_) * multiplier_;
+        if (index == Null<Size>())
+            return false;
+
+        exercised_ = true;
+        exerciseDate_ = today;
+        settlementDate_ = settlementDates_[index];
+
+        if (!instrument_->isExpired()) 
+            updateCacheNPV();
+
+        return true;
+    };
+
+    if (!exercised_) {
+        if (isEffectiveExercise) {
+            exerciseOption();
         } else {
-            // now exercise if we are one an exercise date
-            for (Size i = 0; i < effectiveExerciseDates_.size(); ++i) {
-                if (today == effectiveExerciseDates_[i]) {
-                    if (exercise()) {
-                        exercised_ = true;
-                        exerciseDate_ = today;
-                        settlementDate_ = settlementDates_[i];
-                        // update the cached NPV if available on exercise date
-                        if (!instrument_->isExpired())
-                            cachedNpv_ = multiplier2() * getTimedNPV(instrument_) * multiplier_;
-                    }
-                }
-            }
+            updateCacheNPV(); // Cache for potential future cash settlement
         }
     }
 
