@@ -948,14 +948,15 @@ std::pair<QuantLib::ext::shared_ptr<Instrument>, Date> ParSensitivityInstrumentB
         WLOG("FRA building - mismatch between input index (" << indexName << ") and conventions (" << conv->indexName()
                                                              << ") - using conventions");
     }
+    auto fra_tenor = fraConvIdx->tenor();
     QL_REQUIRE((term.units() == Months) || (term.units() == Years),
                "ParSensitivityInstrumentBuilder::makeFRA(): term unit must be Months or Years");
-    QL_REQUIRE(fraConvIdx->tenor().units() == Months,
-               "ParSensitivityInstrumentBuilder::makeFRA(): index tenor unit must be Months ("
-                   << fraConvIdx->tenor() << ")(" << term << ")(" << indexName << ")(" << name << ")");
-    QL_REQUIRE(term > fraConvIdx->tenor(),
+    QL_REQUIRE(fra_tenor.units() == Months || fra_tenor.units() == Years,
+               "ParSensitivityInstrumentBuilder::makeFRA(): index tenor unit must be Months or Years ("
+                   << fra_tenor << ")(" << term << ")(" << indexName << ")(" << name << ")");
+    QL_REQUIRE(term > fra_tenor,
                "ParSensitivityInstrumentBuilder::makeFRA(): term must be larger than index tenor");
-    Period startTerm = term - fraConvIdx->tenor(); // the input term refers to the end of the FRA accrual period
+    Period startTerm = term - fra_tenor; // the input term refers to the end of the FRA accrual period
     Calendar fraCal = fraConvIdx->fixingCalendar();
     Date asofadj = fraCal.adjust(asof); // same as in FraRateHelper
     Date todaySpot = fraConvIdx->valueDate(asofadj);
