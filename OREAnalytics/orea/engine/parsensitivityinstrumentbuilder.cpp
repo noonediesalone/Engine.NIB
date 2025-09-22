@@ -184,7 +184,7 @@ void ParSensitivityInstrumentBuilder::createParInstruments(
                         ret = makeCrossCcyBasisSwap(
                             simMarket, data.otherCurrency.empty() ? simMarketParams->baseCcy() : data.otherCurrency,
                             ccy, term, convention, parHelperDependencies[key], instruments.removeTodaysFixingIndices_,
-                            marketConfiguration);
+                            data.discountCurve, data.otherDiscountCurve, marketConfiguration);
                     else if (instType == "FXF")
                         ret = makeFxForward(simMarket, simMarketParams->baseCcy(), ccy, term, convention,
                                             parHelperDependencies[key], marketConfiguration);
@@ -291,7 +291,7 @@ void ParSensitivityInstrumentBuilder::createParInstruments(
                         ret = makeCrossCcyBasisSwap(
                             simMarket, data.otherCurrency.empty() ? simMarketParams->baseCcy() : data.otherCurrency,
                             ccy, term, convention, parHelperDependencies[key], instruments.removeTodaysFixingIndices_,
-                            marketConfiguration);
+                            data.discountCurve, data.otherDiscountCurve, marketConfiguration);
                     else if (instType == "BMA")
                         ret = makeBMABasisSwap(asof, simMarket, ccy, "", "", "", "", term, convention, singleCurve,
                                                parHelperDependencies[key], instruments.removeTodaysFixingIndices_,
@@ -1428,6 +1428,7 @@ std::pair<QuantLib::ext::shared_ptr<Instrument>, Date> ParSensitivityInstrumentB
     const QuantLib::ext::shared_ptr<Market>& market, string baseCcy, string ccy, Period term,
     const QuantLib::ext::shared_ptr<Convention>& convention,
     std::set<ore::analytics::RiskFactorKey>& parHelperDependencies_, std::set<std::string>& removeTodaysFixingIndices,
+    const std::string& expDiscountCurve, const std::string& expOtherDiscountCurve,
     const string& marketConfiguration) const {
 
     auto conventions = InstrumentConventions::instance().conventions();
@@ -1574,25 +1575,46 @@ std::pair<QuantLib::ext::shared_ptr<Instrument>, Date> ParSensitivityInstrumentB
         }
     }
 
-    bool isBaseDiscount = true;
-    bool isNonBaseDiscount = true;
+    auto relinkYieldCurve = [&](QuantLib::RelinkableHandle<QuantLib::YieldTermStructure>& handle,
+                                const std::string& ccy, const std::string& explicitName) {
+        RiskFactorKey::KeyType depType;
+        std::string depKey = explicitName.empty() ? ccy : explicitName;
+        
+        if (explicitName.empty()) {
+            // Default cross-currency yield curve
+            bool xccyExists = true;
+            handle.linkTo(xccyYieldCurve(market, ccy, xccyExists, marketConfiguration).currentLink());
+            
+            depType = xccyExists ? RiskFactorKey::KeyType::YieldCurve : RiskFactorKey::KeyType::DiscountCurve;
+        } else {
+            // Explicit lookup in the market
+            QuantLib::ext::shared_ptr<QuantLib::IborIndex> dummyIndex;
+            if (tryParseIborIndex(explicitName, dummyIndex)) {
+                auto discountIndex = market->iborIndex(explicitName, marketConfiguration);
+                handle.linkTo(discountIndex->forwardingTermStructure().currentLink());
+                depType = RiskFactorKey::KeyType::IndexCurve;
+            } else {
+                handle.linkTo(market->yieldCurve(explicitName, marketConfiguration).currentLink());
+                depType = RiskFactorKey::KeyType::YieldCurve;
+            }
+        }
+
+        // Record dependency
+        parHelperDependencies_.emplace(depType, depKey, 0);
+    };
+
     if (market != nullptr) {
-        baseDiscountCurve.linkTo(xccyYieldCurve(market, baseCcy, isBaseDiscount, marketConfiguration).currentLink());
-        discountCurve.linkTo(xccyYieldCurve(market, ccy, isNonBaseDiscount, marketConfiguration).currentLink());
+        relinkYieldCurve(baseDiscountCurve, baseCcy, expOtherDiscountCurve);
+        relinkYieldCurve(discountCurve, ccy, expDiscountCurve);
         QuantLib::ext::shared_ptr<PricingEngine> swapEngine = QuantLib::ext::make_shared<CrossCcySwapEngine>(
             baseCurrency, baseDiscountCurve, currency, discountCurve, fxSpot);
         helper->setPricingEngine(swapEngine);
     }
-
-    if (isBaseDiscount)
-        parHelperDependencies_.emplace(RiskFactorKey::KeyType::YieldCurve, baseCcy, 0);
     else
+    {
         parHelperDependencies_.emplace(RiskFactorKey::KeyType::DiscountCurve, baseCcy, 0);
-
-    if (isNonBaseDiscount)
-        parHelperDependencies_.emplace(RiskFactorKey::KeyType::YieldCurve, ccy, 0);
-    else
         parHelperDependencies_.emplace(RiskFactorKey::KeyType::DiscountCurve, ccy, 0);
+    }
 
     parHelperDependencies_.emplace(RiskFactorKey::KeyType::IndexCurve, baseIndexName, 0);
     parHelperDependencies_.emplace(RiskFactorKey::KeyType::IndexCurve, indexName, 0);

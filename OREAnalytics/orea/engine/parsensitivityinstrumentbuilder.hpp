@@ -144,7 +144,8 @@ private:
     makeCrossCcyBasisSwap(const QuantLib::ext::shared_ptr<ore::data::Market>& market, std::string baseCcy, std::string ccy, QuantLib::Period term,
                           const QuantLib::ext::shared_ptr<ore::data::Convention>& conventions,
                           std::set<ore::analytics::RiskFactorKey>& parHelperDependencies,
-                          std::set<std::string>& removeTodaysFixingIndices,
+                          std::set<std::string>& removeTodaysFixingIndices, const std::string& expDiscountCurve = "",
+                          const std::string& expOtherDiscountCurve = "",
                           const std::string& marketConfiguration = ore::data::Market::defaultConfiguration) const;
 
     //! Create FX Forwrad for implying par rate sensitivity from zero rate sensitivity

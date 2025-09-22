@@ -1060,6 +1060,7 @@ void SensitivityScenarioData::parDataFromXML(XMLNode* child, CurveShiftParData& 
         data.parInstrumentSingleCurve = XMLUtils::getChildValueAsBool(par, "SingleCurve", true);
         data.discountCurve = XMLUtils::getChildValue(par, "DiscountCurve", false);
         data.otherCurrency = XMLUtils::getChildValue(par, "OtherCurrency", false);
+        data.otherDiscountCurve = XMLUtils::getChildValue(par, "OtherDiscountCurve", false);
         XMLNode* conventionsNode = XMLUtils::getChildNode(par, "Conventions");
         data.parInstrumentConventions =
             XMLUtils::getChildrenAttributesAndValues(conventionsNode, "Convention", "id", true);
@@ -1083,6 +1084,8 @@ XMLNode* SensitivityScenarioData::parDataToXML(XMLDocument& doc,
         XMLUtils::addChild(doc, parNode, "DiscountCurve", data->discountCurve);
     if (!data->otherCurrency.empty())
         XMLUtils::addChild(doc, parNode, "OtherCurrency", data->otherCurrency);
+    if (!data->otherDiscountCurve.empty())
+        XMLUtils::addChild(doc, parNode, "OtherDiscountCurve", data->otherDiscountCurve);
     XMLNode* conventionsNode = XMLUtils::addChild(doc, parNode, "Conventions");
     for (const auto& kv : data->parInstrumentConventions) {
         XMLNode* conventionNode = doc.allocNode("Convention", kv.second);

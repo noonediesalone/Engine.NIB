@@ -123,6 +123,11 @@ public:
         // run as the other leg's currency.
         std::string otherCurrency;
 
+        // Allows direct specification of discount curve for the otherCurrency leg in case of cross 
+        // currency basis swap par instruments. If not given, we default to using the market’s XCCY or discount 
+        // curve for that currency. This string will be an index or yield name that is searched for in the market.
+        std::string otherDiscountCurve;
+
         map<string, string> parInstrumentConventions;
     };
 
