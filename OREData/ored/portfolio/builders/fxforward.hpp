@@ -56,13 +56,7 @@ public:
     FxForwardEngineBuilder() : FxForwardEngineBuilderBase("DiscountedCashflows", "DiscountingFxForwardEngine") {}
 
 protected:
-    QuantLib::ext::shared_ptr<PricingEngine> engineImpl(const Currency& forCcy, const Currency& domCcy) override {
-        string pair = keyImpl(forCcy, domCcy);
-        return QuantLib::ext::make_shared<QuantExt::DiscountingFxForwardEngine>(
-            domCcy, market_->discountCurve(domCcy.code(), configuration(MarketContext::pricing)), forCcy,
-            market_->discountCurve(forCcy.code(), configuration(MarketContext::pricing)),
-            market_->fxRate(pair, configuration(MarketContext::pricing)));
-    }
+    QuantLib::ext::shared_ptr<PricingEngine> engineImpl(const Currency& forCcy, const Currency& domCcy) override;
 };
 
 //! FX forward engine builder for external cam, with additional simulation dates (AMC)

@@ -18,6 +18,7 @@
 
 #include <ored/portfolio/builders/fxforward.hpp>
 #include <ored/scripting/engines/amccgfxforwardengine.hpp>
+#include <ored/utilities/marketdata.hpp>
 
 #include <qle/pricingengines/mccamfxforwardengine.hpp>
 #include <qle/models/projectedcrossassetmodel.hpp>
@@ -27,6 +28,25 @@ namespace data {
 
 using namespace QuantLib;
 using namespace QuantExt;
+
+QuantLib::ext::shared_ptr<PricingEngine> FxForwardEngineBuilder::engineImpl(const Currency& forCcy,
+                                                                            const Currency& domCcy) {
+    string pair = keyImpl(forCcy, domCcy);
+    string pricingConfig = configuration(MarketContext::pricing);
+
+    Handle<YieldTermStructure> forDiscountCurve, domDiscountCurve;
+    bool useXccy = parseBool(engineParameter("useXccyYieldCurves", {}, false, "false"));
+    if (useXccy) {
+        forDiscountCurve = xccyYieldCurve(market_, forCcy.code(), pricingConfig);
+        domDiscountCurve = xccyYieldCurve(market_, domCcy.code(), pricingConfig);
+    } else {
+        forDiscountCurve = market_->discountCurve(forCcy.code(), pricingConfig);
+        domDiscountCurve = market_->discountCurve(domCcy.code(), pricingConfig);
+    }
+
+    return QuantLib::ext::make_shared<QuantExt::DiscountingFxForwardEngine>(
+        domCcy, domDiscountCurve, forCcy, forDiscountCurve, market_->fxRate(pair, pricingConfig));
+}
 
 QuantLib::ext::shared_ptr<PricingEngine> CamAmcFxForwardEngineBuilder::engineImpl(const Currency& forCcy,
                                                                           const Currency& domCcy) {
