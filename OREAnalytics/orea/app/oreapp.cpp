@@ -410,6 +410,8 @@ void OREApp::initFromInputs() {
     // Initialise Singletons
     Settings::instance().evaluationDate() = inputs_->asof();
     InstrumentConventions::instance().setConventions(inputs_->conventions());
+    if (inputs_->mporConventions() && inputs_->mporDate() != Date())
+        InstrumentConventions::instance().setConventions(inputs_->mporConventions(), inputs_->mporDate());
 
     if (inputs_->currencyConfigs() != nullptr)
         inputs_->currencyConfigs()->addCurrencies();

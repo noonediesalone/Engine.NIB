@@ -100,6 +100,8 @@ public:
     void setScriptLibraryFromFile(const std::string& fileName);
     void setConventions(const std::string& xml);
     void setConventionsFromFile(const std::string& fileName);
+    void setMporConventions(const std::string& xml);
+    void setMporConventionsFromFile(const std::string& fileName);
     void setIborFallbackConfig(const std::string& xml);
     void setIborFallbackConfigFromFile(const std::string& fileName);
     void setBaselTrafficLightConfig(const std::string& xml);
@@ -532,6 +534,7 @@ public:
     const std::string& marketConfig(const std::string& context);
     const QuantLib::ext::shared_ptr<ore::data::BasicReferenceDataManager>& refDataManager() const { return refDataManager_; }
     const QuantLib::ext::shared_ptr<ore::data::Conventions>& conventions() const { return conventions_; }
+    const QuantLib::ext::shared_ptr<ore::data::Conventions>& mporConventions() const { return mporConventions_; }
     const QuantLib::ext::shared_ptr<ore::data::IborFallbackConfig>& iborFallbackConfig() const { return iborFallbackConfig_; }
     const QuantLib::ext::shared_ptr<ore::data::BaselTrafficLightData>& baselTrafficLightConfig() const { return baselTrafficLightConfig_; }
     CurveConfigurationsManager& curveConfigs() { return curveConfigs_; }
@@ -973,7 +976,7 @@ protected:
     std::map<std::string, std::string> marketConfigs_;
     QuantLib::ext::shared_ptr<ore::data::BasicReferenceDataManager> refDataManager_;
     QuantLib::ext::shared_ptr<ore::data::BaselTrafficLightData> baselTrafficLightConfig_;
-    QuantLib::ext::shared_ptr<ore::data::Conventions> conventions_;
+    QuantLib::ext::shared_ptr<ore::data::Conventions> conventions_, mporConventions_;
     QuantLib::ext::shared_ptr<ore::data::IborFallbackConfig> iborFallbackConfig_;
     CurveConfigurationsManager curveConfigs_;
     QuantLib::ext::shared_ptr<ore::data::CalendarAdjustmentConfig> calendarAdjustment_;
