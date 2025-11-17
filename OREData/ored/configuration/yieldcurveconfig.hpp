@@ -34,8 +34,6 @@
 #include <ql/types.hpp>
 #include <ql/termstructures/bootstraphelper.hpp>
 
-#include <boost/none.hpp>
-#include <boost/optional.hpp>
 #include <ql/shared_ptr.hpp>
 #include <ql/optional.hpp>
 
@@ -622,7 +620,7 @@ public:
     //! Default destructor
     virtual ~BondYieldShiftedYieldCurveSegment() {}
     //@}
-    
+
     //! \name Serialisation
     //@{
     virtual void fromXML(XMLNode* node) override;
@@ -690,6 +688,7 @@ public:
     const string& zeroDayCounter() const { return zeroDayCounter_; }
     bool extrapolation() const { return extrapolation_; }
     const BootstrapConfig& bootstrapConfig() const { return bootstrapConfig_; }
+    bool excludeT0FromInterpolation() const { return excludeT0FromInterpolation_; }
     //@}
 
     //! \name Setters
@@ -722,6 +721,7 @@ private:
     Size mixedInterpolationCutoff_;
     ReportConfig reportConfig_;
     QuantLib::ext::shared_ptr<IborFallbackConfig> iborFallbackConfig_;
+    bool excludeT0FromInterpolation_ = false;
 };
 
 // Map form curveID to YieldCurveConfig
