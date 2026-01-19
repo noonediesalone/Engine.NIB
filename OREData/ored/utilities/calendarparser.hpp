@@ -44,6 +44,7 @@ public:
 private:
     mutable boost::shared_mutex mutex_;
     std::map<std::string, QuantLib::Calendar> calendars_;
+    std::set<std::string> adjustedCalendars_;
 };
 
 } // namespace data
