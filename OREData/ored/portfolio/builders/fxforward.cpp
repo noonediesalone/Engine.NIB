@@ -30,8 +30,8 @@ using namespace QuantLib;
 using namespace QuantExt;
 
 QuantLib::ext::shared_ptr<PricingEngine> FxForwardEngineBuilder::engineImpl(const Currency& forCcy,
-                                                                            const Currency& domCcy) {
-    string pair = keyImpl(forCcy, domCcy);
+                                                                            const Currency& domCcy, const std::string& discountCurve) {
+    string pair = keyImpl(forCcy, domCcy, discountCurve);
     string pricingConfig = configuration(MarketContext::pricing);
 
     Handle<YieldTermStructure> forDiscountCurve, domDiscountCurve;
@@ -45,11 +45,15 @@ QuantLib::ext::shared_ptr<PricingEngine> FxForwardEngineBuilder::engineImpl(cons
     }
 
     return QuantLib::ext::make_shared<QuantExt::DiscountingFxForwardEngine>(
-        domCcy, domDiscountCurve, forCcy, forDiscountCurve, market_->fxRate(pair, pricingConfig));
+        domCcy, domDiscountCurve, forCcy, forDiscountCurve, market_->fxRate(pair, pricingConfig), QuantLib::Date(),
+        QuantLib::Date(),
+        discountCurve.empty() ? Handle<YieldTermStructure>{}
+                              : indexOrYieldCurve(market_, discountCurve, configuration(MarketContext::pricing)));
 }
 
 QuantLib::ext::shared_ptr<PricingEngine> CamAmcFxForwardEngineBuilder::engineImpl(const Currency& forCcy,
-                                                                          const Currency& domCcy) {
+                                                                                  const Currency& domCcy,
+                                                                                  const std::string& discountCurve) {
 
     QL_REQUIRE(domCcy != forCcy, "CamAmcFxForwardEngineBuilder: domCcy = forCcy = " << domCcy.code());
 
@@ -96,7 +100,8 @@ QuantLib::ext::shared_ptr<PricingEngine> CamAmcFxForwardEngineBuilder::engineImp
 }
 
 QuantLib::ext::shared_ptr<PricingEngine> AmcCgFxForwardEngineBuilder::engineImpl(const Currency& forCcy,
-                                                                                 const Currency& domCcy) {
+                                                                                 const Currency& domCcy,
+                                                                                 const std::string& discountCurve) {
 
     QL_REQUIRE(domCcy != forCcy, "AmcCgFxForwardEngineBuilder: domCcy = forCcy = " << domCcy.code());
 
