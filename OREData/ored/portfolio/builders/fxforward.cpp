@@ -31,7 +31,7 @@ using namespace QuantExt;
 
 QuantLib::ext::shared_ptr<PricingEngine> FxForwardEngineBuilder::engineImpl(const Currency& forCcy,
                                                                             const Currency& domCcy, const std::string& discountCurve) {
-    string pair = keyImpl(forCcy, domCcy, discountCurve);
+    string pair = forCcy.code() + domCcy.code();
     string pricingConfig = configuration(MarketContext::pricing);
 
     Handle<YieldTermStructure> forDiscountCurve, domDiscountCurve;
