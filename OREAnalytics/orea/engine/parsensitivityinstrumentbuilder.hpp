@@ -83,7 +83,7 @@ private:
                    const QuantLib::ext::shared_ptr<Convention>& convention, bool singleCurve,
                    std::set<ore::analytics::RiskFactorKey>& parHelperDependencies,
                    std::set<std::string>& removeTodaysFixingIndices, const string& expDiscountCurve,
-                   const string& marketConfiguration) const;
+                   const string& expOtherDiscountCurve, const string& marketConfiguration) const;
     //! Create Deposit for implying par rate sensitivity from zero rate sensitivity
     std::pair<QuantLib::ext::shared_ptr<QuantLib::Instrument>, Date>
     makeDeposit(const QuantLib::Date& asof, const QuantLib::ext::shared_ptr<ore::data::Market>& market, std::string ccy,

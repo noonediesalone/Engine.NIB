@@ -86,7 +86,7 @@ std::pair<QuantLib::ext::shared_ptr<Instrument>, Date> ParSensitivityInstrumentB
     string ccy, string otherCcy, string curveName, string yieldCurveName, string equityForecastCurveName, Period term,
     const QuantLib::ext::shared_ptr<Convention>& convention, bool singleCurve,
     std::set<ore::analytics::RiskFactorKey>& parHelperDependencies, std::set<std::string>& removeTodaysFixingIndices,
-    const string& expDiscountCurve, const string& marketConfiguration) const {
+    const string& expDiscountCurve, const string& expOtherDiscountCurve, const string& marketConfiguration) const {
     string instType3 = instType.substr(0, 3);
     if (instType3 == "IRS")
         return makeSwap(market, ccy, curveName, yieldCurveName, equityForecastCurveName, term, convention, singleCurve,
@@ -102,7 +102,8 @@ std::pair<QuantLib::ext::shared_ptr<Instrument>, Date> ParSensitivityInstrumentB
                        parHelperDependencies, removeTodaysFixingIndices, expDiscountCurve, marketConfiguration);
     else if (instType3 == "XBS")
         return makeCrossCcyBasisSwap(market, otherCcy, ccy, term, convention, parHelperDependencies,
-                                     removeTodaysFixingIndices, marketConfiguration);
+                                     removeTodaysFixingIndices, expDiscountCurve, expOtherDiscountCurve,
+                                     marketConfiguration);
     else if (instType3 == "FXF")
         return makeFxForward(market, otherCcy, ccy, term, convention, parHelperDependencies, marketConfiguration);
     else if (instType3 == "TBS")
@@ -207,7 +208,7 @@ void ParSensitivityInstrumentBuilder::createParInstruments(
                                        data.otherCurrency.empty() ? simMarketParams->baseCcy() : data.otherCurrency,
                                        indexName, yieldCurveName, equityForecastCurveName, term, convention,
                                        singleCurve, parHelperDependencies[key], instruments.removeTodaysFixingIndices_,
-                                       data.discountCurve, marketConfiguration);
+                                       data.discountCurve, data.otherDiscountCurve, marketConfiguration);
                     recognised = ret.first != nullptr;
                 } catch (const std::exception& e) {
                     skipped = true;
@@ -278,11 +279,12 @@ void ParSensitivityInstrumentBuilder::createParInstruments(
                                "ParSensitivityInstrumentBuilder::createParInstruments(): conventions not found for ccy "
                                    << ccy << " and instrument type " << instType);
                     QuantLib::ext::shared_ptr<Convention> convention = conventions->get(conventionsMap[instType]);
-                    ret = makeInstrument(
-                        instType, asof, simMarket, ccy,
-                        data.otherCurrency.empty() ? simMarketParams->baseCcy() : data.otherCurrency, std::string(),
-                        curveName, equityForecastCurveName, term, convention, singleCurve, parHelperDependencies[key],
-                        instruments.removeTodaysFixingIndices_, data.discountCurve, marketConfiguration);
+                    ret =
+                        makeInstrument(instType, asof, simMarket, ccy,
+                                       data.otherCurrency.empty() ? simMarketParams->baseCcy() : data.otherCurrency,
+                                       std::string(), curveName, equityForecastCurveName, term, convention, singleCurve,
+                                       parHelperDependencies[key], instruments.removeTodaysFixingIndices_,
+                                       data.discountCurve, data.otherDiscountCurve, marketConfiguration);
                     recognised = ret.first != nullptr;
                 } catch (const std::exception& e) {
                     skipped = true;
@@ -355,7 +357,7 @@ void ParSensitivityInstrumentBuilder::createParInstruments(
                                        data.otherCurrency.empty() ? simMarketParams->baseCcy() : data.otherCurrency,
                                        indexName, yieldCurveName, equityForecastCurveName, term, convention,
                                        singleCurve, parHelperDependencies[key], instruments.removeTodaysFixingIndices_,
-                                       data.discountCurve, marketConfiguration);
+                                       data.discountCurve, data.otherDiscountCurve, marketConfiguration);
                     recognised = ret.first != nullptr;
                 } catch (const std::exception& e) {
                     skipped = true;
