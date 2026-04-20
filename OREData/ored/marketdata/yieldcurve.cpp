@@ -275,7 +275,7 @@ QuantLib::ext::shared_ptr<YieldTermStructure> buildYieldCurve(YieldCurve::Interp
         break;
     case YieldCurve::InterpolationMethod::Continuous:
         yieldts.reset(new CurveType<QuantExt::ContinuousForward>(std::forward<ConstructorArgs>(args)...,
-                                                                 QuantExt::ContinuousForward()));
+                                                                 QuantExt::ContinuousForward(), extrapolation));
         break;
 
     default:
