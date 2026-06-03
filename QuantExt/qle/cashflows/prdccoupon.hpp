@@ -90,11 +90,9 @@ public:
     PrdcLeg& withCaps(const std::vector<Rate>& caps);
     PrdcLeg& withFloors(Rate floor);
     PrdcLeg& withFloors(const std::vector<Rate>& floors);
-    inline void simulate() { simulate_ = true; }
     operator Leg() const;
 
 private:
-    bool simulate_;
     Schedule schedule_;
     boost::shared_ptr<QuantExt::FxIndex> fxIndex_;
     std::vector<Real> notionals_;
@@ -107,26 +105,6 @@ private:
     std::vector<Rate> foreignRates_;
     std::vector<Rate> caps_;
     std::vector<Rate> floors_;
-};
-
-//! base pricer for PRDC coupons
-class CAMPricer : public FloatingRateCouponPricer {
-public:
-    explicit CAMPricer(boost::shared_ptr<QuantExt::CrossAssetModel> model,
-                       boost::shared_ptr<QuantExt::MultiPathGeneratorBase> pathGen)
-        : model_(model), pathGen_(pathGen) {}
-
-    void initialize(const FloatingRateCoupon& coupon) override;
-    Real swapletPrice() const override;
-    Rate swapletRate() const override;
-    Real capletPrice(Rate effectiveCap) const override;
-    Rate capletRate(Rate effectiveCap) const override;
-    Real floorletPrice(Rate effectiveFloor) const override;
-    Rate floorletRate(Rate effectiveFloor) const override;
-
-private:
-    boost::shared_ptr<QuantExt::CrossAssetModel> model_;
-    boost::shared_ptr<QuantExt::MultiPathGeneratorBase> pathGen_;
 };
 
 } // namespace QuantExt

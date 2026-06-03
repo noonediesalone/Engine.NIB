@@ -83,7 +83,7 @@ boost::shared_ptr<FXLinked> PrdcFixedCoupon::clone(boost::shared_ptr<FxIndex> fx
 }
 
 PrdcLeg::PrdcLeg(Schedule schedule, const boost::shared_ptr<QuantExt::FxIndex>& fxIndex)
-    : simulate_(false), schedule_(std::move(schedule)), fxIndex_(fxIndex), fixingAdjustment_(Following),
+    : schedule_(std::move(schedule)), fxIndex_(fxIndex), fixingAdjustment_(Following),
       inArrearsFixing_(true) {}
 
 PrdcLeg& PrdcLeg::withNotionals(Real notional) {
@@ -182,25 +182,13 @@ PrdcLeg::operator Leg() const {
         auto cap = QuantLib::detail::get(caps_, i, Null<Rate>());
         auto floor = QuantLib::detail::get(floors_, i, Null<Rate>());
 
-        if (!simulate_) {
-            auto fixedCoupon = boost::make_shared<FixedRateCoupon>(
-                paymentDate, notional, fixed_rate, paymentDayCounter_, startDate, endDate, Date(), Date());
-            boost::shared_ptr<PrdcFixedCoupon> coupon = boost::make_shared<PrdcFixedCoupon>(
-                fxIndex_, fixedCoupon, fixingDate, foreignRate, domesticRate, cap, floor);
-            leg.push_back(coupon);
-        } else {
-            QL_ASSERT(false, "PRDC with simulation not implemented");
-        }
+        auto fixedCoupon = boost::make_shared<FixedRateCoupon>(paymentDate, notional, fixed_rate, paymentDayCounter_,
+                                                               startDate, endDate, Date(), Date());
+        boost::shared_ptr<PrdcFixedCoupon> coupon = boost::make_shared<PrdcFixedCoupon>(
+            fxIndex_, fixedCoupon, fixingDate, foreignRate, domesticRate, cap, floor);
+        leg.push_back(coupon);
     }
     return leg;
 }
-
-void CAMPricer::initialize(const FloatingRateCoupon& coupon) {}
-Real CAMPricer::swapletPrice() const { return 0; }
-Rate CAMPricer::swapletRate() const { return 0; }
-Real CAMPricer::capletPrice(Rate effectiveCap) const { return 0; }
-Rate CAMPricer::capletRate(Rate effectiveCap) const { return 0; }
-Real CAMPricer::floorletPrice(Rate effectiveFloor) const { return 0; }
-Rate CAMPricer::floorletRate(Rate effectiveFloor) const { return 0; }
 
 } // namespace QuantExt

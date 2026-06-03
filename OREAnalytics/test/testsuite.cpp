@@ -18,7 +18,6 @@
 
 #include <iomanip>
 #include <iostream>
-#include <oret/config.hpp>
 
 // Boost
 #include <boost/make_shared.hpp>
@@ -37,13 +36,13 @@ using boost::timer::cpu_timer;
 using boost::unit_test::test_suite;
 using boost::unit_test::framework::master_test_suite;
 
-#include <oret/basedatapath.hpp>
-#include <oret/datapaths.hpp>
-#include <oret/oret.hpp>
+#include <oret/util/basedatapath.hpp>
+#include <oret/util/datapaths.hpp>
+#include <oret/logging/log.hpp>
 using ore::test::getBaseDataPath;
 using ore::test::setupTestLogging;
 
-#ifdef BOOST_MSVC
+#if !defined(BOOST_ALL_NO_LIB) && defined(BOOST_MSVC)
 #include <orea/auto_link.hpp>
 #include <ored/auto_link.hpp>
 #include <ql/auto_link.hpp>
@@ -82,12 +81,16 @@ public:
         seconds -= hours * 3600;
         int minutes = int(seconds / 60);
         seconds -= minutes * 60;
+        std::ios::fmtflags f(std::cout.flags());
+        std::streamsize p = std::cout.precision();
         std::cout << std::endl << "OREAnalytics tests completed in ";
         if (hours > 0)
             std::cout << hours << " h ";
         if (hours > 0 || minutes > 0)
             std::cout << minutes << " m ";
         std::cout << std::fixed << std::setprecision(0) << seconds << " s" << std::endl;
+        std::cout.flags(f);
+        std::cout.precision(p);
     }
 
 private:

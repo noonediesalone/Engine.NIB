@@ -40,8 +40,8 @@ OptionWrapper::OptionWrapper(const QuantLib::ext::shared_ptr<Instrument>& inst, 
     : InstrumentWrapper(inst, multiplier, additionalInstruments, additionalMultipliers), isLong_(isLongOption),
       isPhysicalDelivery_(isPhysicalDelivery), contractExerciseDates_(exerciseDate),
       effectiveExerciseDates_(exerciseDate), settlementDates_(settlementDate), underlyingInstruments_(undInst),
-      activeUnderlyingInstrument_(undInst.at(0)), undMultiplier_(undMultiplier), exercised_(false), exercisable_(true),
-      exerciseDate_(Date()), settlementDate_(Date()) {
+      activeUnderlyingInstrument_(undInst.at(0)), multiplier2_(isLong_ ? 1.0 : -1.0), undMultiplier_(undMultiplier),
+      exercised_(false), exercisable_(true), exerciseDate_(Date()), settlementDate_(Date()) {
     QL_REQUIRE(exerciseDate.size() == undInst.size(), "number of exercise dates ("
                                                           << exerciseDate.size()
                                                           << ") must be equal to underlying instrument vector size ("
@@ -81,58 +81,43 @@ void OptionWrapper::reset() {
 
 Real OptionWrapper::NPV() const {
     Real addNPV = additionalInstrumentsNPV();
+
     Date today = Settings::instance().evaluationDate();
+    if (!exercised_) {
 
-    const bool canExercise = exercise();
-    const bool isTodayExerciseDate = std::find(effectiveExerciseDates_.begin(), effectiveExerciseDates_.end(), today) !=
-                                     effectiveExerciseDates_.end();
-    const bool isPastLastExerciseDate = isPhysicalDelivery_ && today > effectiveExerciseDates_.back();
-
-    const bool isEffectiveExercise = isTodayExerciseDate || isPastLastExerciseDate;
-
-    auto updateCacheNPV = [&]() { cachedNpv_ = multiplier2() * getTimedNPV(instrument_) * multiplier_; };
-
-    auto exerciseOption = [&]() -> bool {
-        if (!canExercise)
-            return false;
-
-        Size index = Null<Size>();
-
-        if (isPastLastExerciseDate) {
-            index = effectiveExerciseDates_.size() - 1;
-        } else {
-            for (Size i = 0; i < effectiveExerciseDates_.size(); ++i) {
-                if (today == effectiveExerciseDates_[i]) {
-                    index = i;
-                    break;
-                }
+        bool isExerciseDate = false;
+        for (Size i = 0; i < effectiveExerciseDates_.size(); ++i) {
+            if (today == effectiveExerciseDates_[i]) {
+                isExerciseDate = true;
+                break;
             }
         }
 
-        if (index == Null<Size>())
-            return false;
-
-        exercised_ = true;
-        exerciseDate_ = today;
-        settlementDate_ = settlementDates_[index];
-
-        if (!instrument_->isExpired()) 
-            updateCacheNPV();
-
-        return true;
-    };
-
-    if (!exercised_) {
-        if (isEffectiveExercise) {
-            exerciseOption();
+        if (!isExerciseDate) {
+            // Cache NPV along the path for later exercise with cash settlement,
+            // i.e. as a proxy for the cash settlement amount if the instrument isn't priced on exercise date anymore
+            cachedNpv_ = multiplier2() * getTimedNPV(instrument_) * multiplier_;
         } else {
-            updateCacheNPV(); // Cache for potential future cash settlement
+            // now exercise if we are one an exercise date
+            for (Size i = 0; i < effectiveExerciseDates_.size(); ++i) {
+                if (today == effectiveExerciseDates_[i]) {
+                    if (exercise()) {
+                        exercised_ = true;
+                        exerciseDate_ = today;
+                        settlementDate_ = settlementDates_[i];
+                        multiplier2_ *= undMultiplier_;
+                        // update the cached NPV if available on exercise date
+                        if (!instrument_->isExpired())
+                            cachedNpv_ = multiplier2() * getTimedNPV(instrument_) * multiplier_;
+                    }
+                }
+            }
         }
     }
 
     if (exercised_) {
         if (isPhysicalDelivery_) {
-            Real npv = multiplier2() * getTimedNPV(activeUnderlyingInstrument_) * undMultiplier_;
+            Real npv = multiplier2() * getTimedNPV(activeUnderlyingInstrument_);
             return npv + addNPV;
         } else { // cash settlement
             ext::optional<bool> inc = Settings::instance().includeTodaysCashFlows();
@@ -177,11 +162,11 @@ bool AmericanOptionWrapper::exercise() const {
 
     if (Settings::instance().evaluationDate() == effectiveExerciseDates_.back()) {
         Real value = getTimedNPV(activeUnderlyingInstrument_) * undMultiplier_;
-	cachedExerciseValue_ = value;
+        cachedExerciseValue_ = value;
         return value > 0.0;
     } else {
         Real value = getTimedNPV(activeUnderlyingInstrument_) * undMultiplier_ - getTimedNPV(instrument_) * multiplier_;
-	cachedExerciseValue_ = value;
+        cachedExerciseValue_ = value;
         return value > 0.0;
     }
 }
@@ -195,13 +180,13 @@ bool BermudanOptionWrapper::exercise() const {
     for (Size i = 0; i < effectiveExerciseDates_.size(); ++i) {
         if (today == effectiveExerciseDates_[i]) {
             activeUnderlyingInstrument_ = underlyingInstruments_[i];
-	    break;
+            break;
         }
     }
 
     Real value = getTimedNPV(activeUnderlyingInstrument_) * undMultiplier_ - getTimedNPV(instrument_) * multiplier_;
     cachedExerciseValue_ = value;
-    
+
     return value > 0.0;
 }
 } // namespace data

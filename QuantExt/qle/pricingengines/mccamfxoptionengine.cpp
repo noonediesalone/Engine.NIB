@@ -44,7 +44,8 @@ McCamFxOptionEngineBase::McCamFxOptionEngineBase(
                            reevaluateExerciseInStickyRun, cfOnCpnMaxSimTimes, cfOnCpnAddSimTimesCutoff,
                            regressionMaxSimTimesIr, regressionMaxSimTimesFx, regressionMaxSimTimesEq,
                            regressionVarGroupMode),
-      domesticCcy_(domesticCcy), foreignCcy_(foreignCcy), npvCcy_(npvCcy) {}
+      domesticCcy_(domesticCcy), foreignCcy_(foreignCcy), npvCcy_(npvCcy), fxOptionResultValue_(Null<Real>()),
+      fxOptionUnderlyingNpv_(Null<Real>()) {}
 
 void McCamFxOptionEngineBase::setupLegs() const {
     QL_REQUIRE(payoff_, "McCamFxOptionEngineBase: payoff has unexpected type");
@@ -73,7 +74,7 @@ void McCamFxOptionEngineBase::calculateFxOptionBase() const {
     Real fxSpot = 1.0;
     Size npvCcyIndex = model_->ccyIndex(npvCcy_);
     if (npvCcyIndex > 0)
-        fxSpot = model_->fxbs(npvCcyIndex - 1)->fxSpotToday()->value();
+        fxSpot = model_->fxModel(npvCcyIndex - 1)->fxSpotToday()->value();
 
     fxOptionResultValue_ = resultValue_ / fxSpot;
     fxOptionUnderlyingNpv_ = resultUnderlyingNpv_ / fxSpot;

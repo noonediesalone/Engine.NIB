@@ -18,8 +18,7 @@
 
 /*! \file orea/aggregation/simmhelper.hpp
     \brief Dynamic initial margin helper returning Simple SIMM
-
-    \ingroup dim
+    \ingroup analytics
 */
 
 #pragma once
@@ -91,12 +90,12 @@ private:
     QuantExt::RandomVariable irDeltaIM_, irVegaIM_, irCurvatureIM_;
     QuantExt::RandomVariable fxDeltaIM_, fxVegaIM_, fxCurvatureIM_;
 
-    Real totalMargin_;
-    Real deltaMargin_;
-    Real vegaMargin_;
-    Real curvatureMargin_;
-    Real irDeltaMargin_;
-    Real fxDeltaMargin_;
+    Real totalMargin_ = Null<Real>();
+    Real deltaMargin_ = Null<Real>();
+    Real vegaMargin_ = Null<Real>();
+    Real curvatureMargin_ = Null<Real>();
+    Real irDeltaMargin_ = Null<Real>();
+    Real fxDeltaMargin_ = Null<Real>();
 };
 
 } // namespace analytics

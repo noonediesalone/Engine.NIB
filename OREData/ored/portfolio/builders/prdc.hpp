@@ -40,13 +40,5 @@ protected:
     virtual string keyImpl(const string& key) override { return key; }
 };
 
-class CamPrdcCouponPricerBuilder : public PrdcCouponPricerBuilder {
-public:
-    CamPrdcCouponPricerBuilder() : PrdcCouponPricerBuilder("CAM", "Grid") {}
-
-protected:
-    virtual boost::shared_ptr<FloatingRateCouponPricer> engineImpl(const string& key) override;
-};
-
 } // namespace data
 } // namespace ore

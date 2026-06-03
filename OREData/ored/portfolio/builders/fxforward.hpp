@@ -43,6 +43,7 @@ class FxForwardEngineBuilderBase
 public:
     FxForwardEngineBuilderBase(const std::string& model, const std::string& engine)
         : CachingEngineBuilder(model, engine, {"FxForward"}) {}
+    virtual bool optimizedInstrument() const { return false; }
 
 protected:
     string keyImpl(const Currency& forCcy, const Currency& domCcy, const std::string& discountCurve) override {
@@ -56,7 +57,7 @@ protected:
 /*! Pricing engines are cached by currency pair
     \ingroup builders
 */
-class FxForwardEngineBuilder : public FxForwardEngineBuilderBase {
+class FxForwardEngineBuilder final : public FxForwardEngineBuilderBase {
 public:
     FxForwardEngineBuilder() : FxForwardEngineBuilderBase("DiscountedCashflows", "DiscountingFxForwardEngine") {}
 
@@ -66,7 +67,7 @@ protected:
 };
 
 //! FX forward engine builder for external cam, with additional simulation dates (AMC)
-class CamAmcFxForwardEngineBuilder : public FxForwardEngineBuilderBase {
+class CamAmcFxForwardEngineBuilder final : public FxForwardEngineBuilderBase {
 public:
     // for external cam, with additional simulation dates (AMC)
     CamAmcFxForwardEngineBuilder(const QuantLib::ext::shared_ptr<QuantExt::CrossAssetModel>& cam,
@@ -85,7 +86,7 @@ private:
 };
 
 //! FX forward engine builder(AMC-CG)
-class AmcCgFxForwardEngineBuilder : public FxForwardEngineBuilderBase {
+class AmcCgFxForwardEngineBuilder final : public FxForwardEngineBuilderBase {
 public:
     // for external cam, with additional simulation dates (AMC)
     AmcCgFxForwardEngineBuilder(const QuantLib::ext::shared_ptr<ore::data::ModelCG>& modelCg,
@@ -100,6 +101,19 @@ protected:
 private:
     const QuantLib::ext::shared_ptr<ore::data::ModelCG> modelCg_;
     const std::vector<Date> simulationDates_;
+};
+
+//! FX forward engine builder, optimized for exposure simulation
+class FxForwardOptimizedEngineBuilder final : public FxForwardEngineBuilderBase {
+public:
+    FxForwardOptimizedEngineBuilder() : FxForwardEngineBuilderBase("Optimized", "Optimized") {}
+    bool optimizedInstrument() const override { return true; }
+
+protected:
+    QuantLib::ext::shared_ptr<PricingEngine> engineImpl(const Currency& forCcy, const Currency& domCcy,
+                                                        const std::string& discountCurve) override {
+        return nullptr;
+    }
 };
 
 } // namespace data

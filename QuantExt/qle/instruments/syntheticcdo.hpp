@@ -101,7 +101,7 @@ using namespace QuantLib;
   The pricing algorithm allows for varying notional amounts and
   default termstructures of the underlyings.
 
-  \ingroup credit
+  \ingroup instruments
 
   \todo Investigate and fix cases \f$ E_{i+1} < E_i. \f$
 */
@@ -195,15 +195,15 @@ private:
     QuantLib::ext::shared_ptr<CashFlow> upfrontPayment_, accrualRebate_, accrualRebateCurrent_;
     Real recoveryRate_;
     
-    mutable Real premiumValue_;
-    mutable Real protectionValue_;
-    mutable Real upfrontPremiumValue_;
-    mutable Real remainingNotional_;
-    mutable Size error_;
+    mutable Real premiumValue_ = Null<Real>();
+    mutable Real protectionValue_ = Null<Real>();
+    mutable Real upfrontPremiumValue_ = Null<Real>();
+    mutable Real remainingNotional_ = Null<Real>();
+    mutable Size error_ = Null<Size>();
     mutable std::vector<Real> expectedTrancheLoss_;
-    mutable Real accrualRebateNPV_;
-    mutable Real accrualRebateNPVCurrent_;
-    mutable Real cleanNPV_;
+    mutable Real accrualRebateNPV_ = Null<Real>();
+    mutable Real accrualRebateNPVCurrent_ = Null<Real>();
+    mutable Real cleanNPV_ = Null<Real>();
 };
 
 class SyntheticCDO::arguments : public virtual PricingEngine::arguments {

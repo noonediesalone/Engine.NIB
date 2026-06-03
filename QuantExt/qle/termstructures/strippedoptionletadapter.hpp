@@ -81,6 +81,7 @@ public:
     //@{
     QuantLib::VolatilityType volatilityType() const override;
     QuantLib::Real displacement() const override;
+    bool useEffectiveVolatility() const override;
     //@}
 
     //! \name LazyObject interface
@@ -198,6 +199,11 @@ inline QuantLib::VolatilityType StrippedOptionletAdapter<TimeInterpolator, Smile
 template <class TimeInterpolator, class SmileInterpolator>
 inline QuantLib::Real StrippedOptionletAdapter<TimeInterpolator, SmileInterpolator>::displacement() const {
     return optionletBase_->displacement();
+}
+
+template <class TimeInterpolator, class SmileInterpolator>
+inline bool StrippedOptionletAdapter<TimeInterpolator, SmileInterpolator>::useEffectiveVolatility() const {
+    return optionletBase_->useEffectiveVolatility();
 }
 
 template <class TimeInterpolator, class SmileInterpolator>
