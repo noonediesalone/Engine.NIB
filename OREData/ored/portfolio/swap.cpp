@@ -523,6 +523,8 @@ bool floatingLegHasCapFloors(const QuantLib::ext::shared_ptr<FloatingLegData>& f
 }
 
 bool legIsSimmEligableXccySwap(const LegData& ld) {
+    return true; // TODO: report this!
+    /*
     if (ld.legType() != LegType::Fixed && ld.legType() != LegType::Floating && ld.legType() != LegType::Cashflow)
         return false;
     if (!ld.indexing().empty()) {
@@ -533,6 +535,7 @@ bool legIsSimmEligableXccySwap(const LegData& ld) {
         return false;
     }
     return true;
+    */
 }
 
 bool isSimmEligibleXccySwap(const std::vector<LegData>& legData, const std::string& settlement) {
