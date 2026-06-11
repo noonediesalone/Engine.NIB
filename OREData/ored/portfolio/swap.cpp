@@ -120,7 +120,7 @@ void Swap::build(const QuantLib::ext::shared_ptr<EngineFactory>& engineFactory) 
     /* determine whether we have a xccy and whether to use the special xbs curves */
     isXCCY_ = isXCCY_ || currenciesWithIndexing.size() > 1;
 
-    bool useXbsCurves = isSimmEligibleXccySwap(legData_, settlement_);
+    bool useXbsCurves = isSimmEligibleXccySwap(legData_, settlement_) || currenciesWithIndexing.size() > 1;
 
     std::tie(notionalTakenFromLeg_, notional_, npvCurrency_, notionalCurrency_) = getSwapNpvAndNotionalInfo(legData_);
 
