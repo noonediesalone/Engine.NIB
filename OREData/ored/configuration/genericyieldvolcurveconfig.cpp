@@ -85,6 +85,7 @@ GenericYieldVolatilityCurveConfig::GenericYieldVolatilityCurveConfig(
     const std::string& proxyTargetSwapIndexBase)
     : CurveConfig(curveID, curveDescription), underlyingLabel_(underlyingLabel), rootNodeLabel_(rootNodeLabel),
       qualifierLabel_(qualifierLabel), allowSmile_(true), requireSwapIndexBases_(false),
+      proxySourceCurveId_(proxySourceCurveId),
       proxySourceShortSwapIndexBase_(proxySourceShortSwapIndexBase),
       proxySourceSwapIndexBase_(proxySourceSwapIndexBase),
       proxyTargetShortSwapIndexBase_(proxyTargetShortSwapIndexBase),
