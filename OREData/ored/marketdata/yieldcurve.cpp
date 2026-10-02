@@ -19,6 +19,7 @@
 
 #include <ored/marketdata/defaultcurve.hpp>
 #include <ored/marketdata/fittedbondcurvehelpermarket.hpp>
+#include <ored/marketdata/inflationcurve.hpp>
 #include <ored/marketdata/marketdatumparser.hpp>
 #include <ored/marketdata/yieldcurve.hpp>
 #include <ored/portfolio/bond.hpp>
@@ -91,6 +92,12 @@ namespace {
 // Helper function to return the key required to look up the map in the YieldCurve ctor
 string yieldCurveKey(const Currency& curveCcy, const string& curveID, const Date&) {
     ore::data::YieldCurveSpec tempSpec(curveCcy.code(), curveID);
+    return tempSpec.name();
+}
+
+// Helper function to return the key required to look up the required inflation curve handles map
+string inflationCurveKey(const string& inflationIndex, const string& curveID) {
+    ore::data::InflationCurveSpec tempSpec(inflationIndex, curveID);
     return tempSpec.name();
 }
 
@@ -223,10 +230,6 @@ buildYieldCurve(YieldCurve::InterpolationMethod interpolationMethod,
                                                            CubicInterpolation::SecondDerivative, 0.0),
                                                      extrapolation, excludeT0));
         break;
-    case YieldCurve::InterpolationMethod::DefaultLogMixedLinearCubic:
-        yieldts.reset(new CurveType<KrugerLogMixedLinearCubic>(dates, data, dayCounter, KrugerLogMixedLinearCubic(n),
-                                                                extrapolation, excludeT0));
-        break;
     case YieldCurve::InterpolationMethod::MonotonicLogMixedLinearCubic:
         yieldts.reset(new CurveType<MonotonicLogMixedLinearCubic>(
             dates, data, dayCounter, MonotonicLogMixedLinearCubic(n), extrapolation, excludeT0));
@@ -337,8 +340,8 @@ YieldCurve::InterpolationMethod parseYieldCurveInterpolationMethod(const string&
         return YieldCurve::InterpolationMethod::Hermite;
     else if (s == "CubicSpline")
         return YieldCurve::InterpolationMethod::CubicSpline;
-    else if (s == "DefaultLogMixedLinearCubic")
-        return YieldCurve::InterpolationMethod::DefaultLogMixedLinearCubic;
+    else if (s == "DefaultLogMixedLinearCubic") // deprecated,for backwards compatibility
+        return YieldCurve::InterpolationMethod::KrugerLogMixedLinearCubic;
     else if (s == "MonotonicLogMixedLinearCubic")
         return YieldCurve::InterpolationMethod::MonotonicLogMixedLinearCubic;
     else if (s == "KrugerLogMixedLinearCubic")
@@ -399,8 +402,6 @@ std::ostream& operator<<(std::ostream& out, const YieldCurve::InterpolationMetho
         return out << "Hermite";
     else if (m == YieldCurve::InterpolationMethod::CubicSpline)
         return out << "CubicSpline";
-    else if (m == YieldCurve::InterpolationMethod::DefaultLogMixedLinearCubic)
-        return out << "DefaultLogMixedLinearCubic";
     else if (m == YieldCurve::InterpolationMethod::MonotonicLogMixedLinearCubic)
         return out << "MonotonicLogMixedLinearCubic";
     else if (m == YieldCurve::InterpolationMethod::KrugerLogMixedLinearCubic)
@@ -423,13 +424,15 @@ YieldCurve::YieldCurve(Date asof, const std::vector<QuantLib::ext::shared_ptr<Yi
                        const CurveConfigurations& curveConfigs, const Loader& loader,
                        const map<string, QuantLib::ext::shared_ptr<YieldCurve>>& requiredYieldCurves,
                        const map<string, QuantLib::ext::shared_ptr<DefaultCurve>>& requiredDefaultCurves,
+                       const map<string, QuantLib::ext::shared_ptr<InflationCurve>>& requiredInflationCurves,
                        const FXTriangulation& fxTriangulation,
                        const QuantLib::ext::shared_ptr<ReferenceDataManager>& referenceData,
                        const QuantLib::ext::shared_ptr<IborFallbackConfig>& iborFallbackConfig,
                        const bool preserveQuoteLinkage, const bool buildCalibrationInfo, const Market* market,
                        const bool useAtParCoupons)
     : asofDate_(asof), curveSpec_(curveSpec), loader_(loader), requiredYieldCurves_(requiredYieldCurves),
-      requiredDefaultCurves_(requiredDefaultCurves), fxTriangulation_(fxTriangulation), referenceData_(referenceData),
+      requiredDefaultCurves_(requiredDefaultCurves), requiredInflationCurves_(requiredInflationCurves),
+      fxTriangulation_(fxTriangulation), referenceData_(referenceData),
       iborFallbackConfig_(iborFallbackConfig), preserveQuoteLinkage_(preserveQuoteLinkage),
       buildCalibrationInfo_(buildCalibrationInfo), market_(market), useAtParCoupons_(useAtParCoupons) {
 
@@ -440,6 +443,7 @@ YieldCurve::YieldCurve(Date asof, const std::vector<QuantLib::ext::shared_ptr<Yi
         CleanUp(YieldCurve* c) : c_(c) {}
         ~CleanUp() {
             c_->requiredYieldCurveHandles_.clear();
+            c_->requiredInflationCurveHandles_.clear();
             c_->discountCurve_.clear();
             c_->multiCurve_.reset();
             c_->rateHelperData_.clear();
@@ -459,6 +463,17 @@ YieldCurve::YieldCurve(Date asof, const std::vector<QuantLib::ext::shared_ptr<Yi
 
     for (auto const& s : curveSpec) {
         requiredYieldCurveHandles_[s->name()] = QuantLib::RelinkableHandle<YieldTermStructure>();
+    }
+
+    // copy the required inflation curves container to our handle container. Unlike YieldCurve, InflationCurve does
+    // not expose a term structure handle, so we build a ZeroInflationIndex from its zero inflation term structure.
+
+    for (auto const& [k, v] : requiredInflationCurves_) {
+        if (auto zts =
+                QuantLib::ext::dynamic_pointer_cast<ZeroInflationTermStructure>(v->inflationTermStructure())) {
+            auto index = parseZeroInflationIndex(v->spec().index(), Handle<ZeroInflationTermStructure>(zts));
+            requiredInflationCurveHandles_[k] = QuantLib::RelinkableHandle<ZeroInflationIndex>(index);
+        }
     }
 
     // collect the info we need to build the curves
@@ -892,9 +907,6 @@ YieldCurve::buildPiecewiseCurve(const std::size_t index, const std::size_t mixed
                  LogCubic(CubicInterpolation::Spline, true, CubicInterpolation::SecondDerivative, 0.0,
                           CubicInterpolation::SecondDerivative, 0.0))
             break;
-        case InterpolationMethod::DefaultLogMixedLinearCubic:
-            PWYC(ZeroYield, DefaultLogMixedLinearCubic, DefaultLogMixedLinearCubic(mixedInterpolationSize))
-            break;
         case InterpolationMethod::MonotonicLogMixedLinearCubic:
             PWYC(ZeroYield, MonotonicLogMixedLinearCubic, MonotonicLogMixedLinearCubic(mixedInterpolationSize))
             break;
@@ -969,9 +981,6 @@ YieldCurve::buildPiecewiseCurve(const std::size_t index, const std::size_t mixed
                  LogCubic(CubicInterpolation::Spline, true, CubicInterpolation::SecondDerivative, 0.0,
                           CubicInterpolation::SecondDerivative, 0.0))
             break;
-        case InterpolationMethod::DefaultLogMixedLinearCubic:
-            PWYC(Discount, DefaultLogMixedLinearCubic, DefaultLogMixedLinearCubic(mixedInterpolationSize))
-            break;
         case InterpolationMethod::MonotonicLogMixedLinearCubic:
             PWYC(Discount, MonotonicLogMixedLinearCubic, MonotonicLogMixedLinearCubic(mixedInterpolationSize))
             break;
@@ -1045,9 +1054,6 @@ YieldCurve::buildPiecewiseCurve(const std::size_t index, const std::size_t mixed
             PWYC(ForwardRate, LogCubic,
                  LogCubic(CubicInterpolation::Spline, true, CubicInterpolation::SecondDerivative, 0.0,
                           CubicInterpolation::SecondDerivative, 0.0))
-            break;
-        case InterpolationMethod::DefaultLogMixedLinearCubic:
-            PWYC(ForwardRate, KrugerLogMixedLinearCubic, KrugerLogMixedLinearCubic(mixedInterpolationSize))
             break;
         case InterpolationMethod::MonotonicLogMixedLinearCubic:
             PWYC(ForwardRate, MonotonicLogMixedLinearCubic, MonotonicLogMixedLinearCubic(mixedInterpolationSize))
@@ -1933,12 +1939,12 @@ void YieldCurve::buildFittedBondCurve(const std::size_t index) {
     // the pricing engine here is _not_ used during the curve fitting, for this a local engine is
     // set up within FittedBondDiscountCurve
     auto engineData = QuantLib::ext::make_shared<EngineData>();
-    engineData->model("Bond") = "DiscountedCashflows";
-    engineData->engine("Bond") = "DiscountingRiskyBondEngine";
-    engineData->engineParameters("Bond") = {{"TimestepPeriod", "6M"}};
+    engineData->setModel("Bond", "DiscountedCashflows");
+    engineData->setEngine("Bond", "DiscountingRiskyBondEngine");
+    engineData->setEngineParameters("Bond", {{"TimestepPeriod", "6M"}});
 
     std::map<std::string, Handle<YieldTermStructure>> iborCurveMapping;
-    for (auto const& c : curveSegment->iborIndexCurves()) {
+    for (auto const& c : curveSegment->indexCurves()) {
         auto index = parseIborIndex(c.first);
         auto key = yieldCurveKey(index->currency(), c.second, asofDate_);
         auto y = requiredYieldCurveHandles_.find(key);
@@ -1948,8 +1954,18 @@ void YieldCurve::buildFittedBondCurve(const std::size_t index) {
         iborCurveMapping[c.first] = y->second;
     }
 
+    std::map<std::string, Handle<ZeroInflationIndex>> inflationIndexMapping;
+    for (auto const& c : curveSegment->inflationIndexCurves()) {
+        auto key = inflationCurveKey(c.first, c.second);
+        auto y = requiredInflationCurveHandles_.find(key);
+        QL_REQUIRE(y != requiredInflationCurveHandles_.end(), "required inflation curve '"
+                                                                  << key << "' for inflationIndex '" << c.first
+                                                                  << "' not provided for fitted bond curve");
+        inflationIndexMapping[c.first] = y->second;
+    }
+
     auto engineFactory = QuantLib::ext::make_shared<EngineFactory>(
-        engineData, QuantLib::ext::make_shared<FittedBondCurveHelperMarket>(iborCurveMapping),
+        engineData, QuantLib::ext::make_shared<FittedBondCurveHelperMarket>(iborCurveMapping, inflationIndexMapping),
         std::map<MarketContext, string>(), referenceData_, iborFallbackConfig_);
 
     for (Size i = 0; i < quoteIDs.size(); ++i) {
@@ -2159,13 +2175,13 @@ void YieldCurve::buildBondYieldShiftedCurve(const std::size_t index) {
     Real thisDuration = Null<Real>();
 
     auto engineData = QuantLib::ext::make_shared<EngineData>();
-    engineData->model("Bond") = "DiscountedCashflows";
-    engineData->engine("Bond") = "DiscountingRiskyBondEngine";
-    engineData->engineParameters("Bond") = {{"TimestepPeriod", "3M"}};
+    engineData->setModel("Bond", "DiscountedCashflows");
+    engineData->setEngine("Bond", "DiscountingRiskyBondEngine");
+    engineData->setEngineParameters("Bond", {{"TimestepPeriod", "3M"}});
 
     //  needed to link the ibors in case bond is a floater
     std::map<std::string, Handle<YieldTermStructure>> iborCurveMapping;
-    for (auto const& c : segment->iborIndexCurves()) {
+    for (auto const& c : segment->indexCurves()) {
         auto index = parseIborIndex(c.first);
         auto key = yieldCurveKey(index->currency(), c.second, asofDate_);
         auto y = requiredYieldCurveHandles_.find(key);
@@ -2174,8 +2190,19 @@ void YieldCurve::buildBondYieldShiftedCurve(const std::size_t index) {
         iborCurveMapping[c.first] = y->second;
     }
 
+    //  needed to project the cpi legs in case bond is inflation-linked (e.g. TIPS)
+    std::map<std::string, Handle<ZeroInflationIndex>> inflationIndexMapping;
+    for (auto const& c : segment->inflationIndexCurves()) {
+        auto key = inflationCurveKey(c.first, c.second);
+        auto y = requiredInflationCurveHandles_.find(key);
+        QL_REQUIRE(y != requiredInflationCurveHandles_.end(),
+                   "required inflation index curve '" << key << "' for inflationIndex '" << c.first
+                                                      << "' for bond yield shifted curve");
+        inflationIndexMapping[c.first] = y->second;
+    }
+
     auto engineFactory = QuantLib::ext::make_shared<EngineFactory>(
-        engineData, QuantLib::ext::make_shared<FittedBondCurveHelperMarket>(iborCurveMapping),
+        engineData, QuantLib::ext::make_shared<FittedBondCurveHelperMarket>(iborCurveMapping, inflationIndexMapping),
         std::map<MarketContext, string>(), referenceData_, iborFallbackConfig_);
 
     QL_REQUIRE(quoteIDs.size() > 0, "at least one bond for shifting of the reference curve required.");
@@ -2351,13 +2378,17 @@ void YieldCurve::addFutures(const std::size_t index, const QuantLib::ext::shared
                 QL_REQUIRE(futureQuote->tenor().units() == Months || futureQuote->tenor().units() == Years,
                            "Tenor of future quote (" << futureQuote->name()
                                                      << ") must be expressed in months or years");
-
+                QL_REQUIRE(!futureConvention->overnightIndexTenor().has_value() ||
+                               futureConvention->overnightIndexTenor().value() == futureQuote->tenor(),
+                           "Overnight index tenor in future convention for index "
+                               << on->name() << " must match the tenor of the future quote (" << futureQuote->name()
+                               << ")");
                 // Create a Overnight index future helper
                 Date startDate, endDate;
                 std::pair<Date, Date> startEndDate;
-                startEndDate =
-                    getOiFutureStartEndDate(futureQuote->expiryMonth(), futureQuote->expiryYear(), futureQuote->tenor(),
-                                            futureConvention->dateGenerationRule(), futureConvention->calendar());
+                auto [m, y] = getMonthYear(normaliseDeliveryCode(futureQuote->contractMonth()));
+                startEndDate = getOiFutureStartEndDate(
+                    m, y, futureQuote->tenor(), futureConvention->dateGenerationRule(), futureConvention->calendar());
                 startDate = startEndDate.first;
                 endDate = startEndDate.second;
 
@@ -2413,14 +2444,15 @@ void YieldCurve::addFutures(const std::size_t index, const QuantLib::ext::shared
                 // Create a MM future helper
                 QL_REQUIRE(
                     futureConvention->dateGenerationRule() == FutureConvention::DateGenerationRule::IMM ||
+                    futureConvention->dateGenerationRule() == FutureConvention::DateGenerationRule::IMMEUR ||
                     futureConvention->dateGenerationRule() == FutureConvention::DateGenerationRule::IMMAUD ||
                     futureConvention->dateGenerationRule() == FutureConvention::DateGenerationRule::IMMNZD ||
                     futureConvention->dateGenerationRule() == FutureConvention::DateGenerationRule::IMMCAD,
-                    "For MM Futures only 'IMM', 'IMMAUD' (alias 'SecondThursday'), 'IMMNZD', or 'IMMCAD' are allowed "
+                    "For MM Futures only 'IMM', 'IMMEUR' (2 bd before ThirdWednesday), 'IMMAUD' (alias 'SecondThursday'), 'IMMNZD', or 'IMMCAD' are allowed "
                     "as date generation rules, check the future convention '"
                         << segment->conventionsID() << "'");
-                Date immDate = getMmFutureExpiryDate(futureQuote->expiryMonth(), futureQuote->expiryYear(),
-                                                     futureConvention->dateGenerationRule());
+                auto [m, y] = getMonthYear(normaliseDeliveryCode(futureQuote->expiry()));
+                Date immDate = getMmFutureExpiryDate(m, y, futureConvention->dateGenerationRule());
 
                 if (immDate < asofDate_) {
                     DLOG("Skipping the " << io::ordinal(i + 1) << " money market future instrument because its "
@@ -2499,14 +2531,18 @@ void YieldCurve::addFras(const std::size_t index, const QuantLib::ext::shared_pt
                 Size imm1 = immFraQuote->imm1();
                 Size imm2 = immFraQuote->imm2();
                 helper = QuantLib::ext::make_shared<FraRateHelper>(
-                    immFraQuote->quote(), imm1, imm2, fraConvention->index(), pillarChoice(segment->pillarChoice()));
+                    immFraQuote->quote(), imm1, imm2, fraConvention->index(),
+                    pillarChoice(segment->pillarChoice()), Date(), true,
+                    fraConvention->endDateFromStart());
             } else if (marketQuote->instrumentType() == MarketDatum::InstrumentType::FRA) {
                 QuantLib::ext::shared_ptr<FRAQuote> fraQuote;
                 fraQuote = QuantLib::ext::dynamic_pointer_cast<FRAQuote>(marketQuote);
                 Period periodToStart = fraQuote->fwdStart();
 
                 helper = QuantLib::ext::make_shared<FraRateHelper>(
-                    fraQuote->quote(), periodToStart, fraConvention->index(), pillarChoice(segment->pillarChoice()));
+                    fraQuote->quote(), periodToStart, fraConvention->index(),
+                    pillarChoice(segment->pillarChoice()), Date(), true,
+                    fraConvention->endDateFromStart());
             } else {
                 QL_FAIL("Market quote not of type FRA.");
             }
@@ -2619,7 +2655,7 @@ void YieldCurve::addOISs(const std::size_t index, const QuantLib::ext::shared_pt
                         oisConvention->eom(), oisConvention->fixedFrequency(), oisConvention->fixedConvention(),
                         oisConvention->fixedPaymentConvention(), oisConvention->rule(), discountCurve_[index],
                         discountCurveGiven_[index], true, pillarChoice(segment->pillarChoice()), Date(),
-                        oisConvention->paymentCalendar());
+                        oisConvention->paymentCalendar(), oisConvention->rateCutoff());
                     instruments.push_back(
                         {oisHelper, mainPillarDate(segment->pillarChoice(), oisHelper->pillarDate()),
                          additionalPillarDates(segment->pillarChoice(), oisHelper->earliestDate()), "OIS",
@@ -2642,7 +2678,7 @@ void YieldCurve::addOISs(const std::size_t index, const QuantLib::ext::shared_pt
                         oisConvention->fixedFrequency(), oisConvention->fixedConvention(),
                         oisConvention->fixedPaymentConvention(), oisConvention->rule(), discountCurve_[index],
                         discountCurveGiven_[index], true, pillarChoice(segment->pillarChoice()), Date(),
-                        oisConvention->paymentCalendar());
+                        oisConvention->paymentCalendar(), oisConvention->rateCutoff());
                     instruments.push_back(
                         {oisHelper, mainPillarDate(segment->pillarChoice(), oisHelper->pillarDate()),
                          additionalPillarDates(segment->pillarChoice(), oisHelper->earliestDate()), "OIS Dated",
@@ -2908,7 +2944,8 @@ void YieldCurve::addTenorBasisSwaps(const std::size_t index,
                 receiveIndexGiven, discountCurveGiven_[index], basisSwapConvention->spreadOnRec(),
                 basisSwapConvention->includeSpread(), basisSwapConvention->payFrequency(),
                 basisSwapConvention->receiveFrequency(), telescopicValueDates,
-                basisSwapConvention->subPeriodsCouponType(), pillarChoice(segment->pillarChoice()));
+                basisSwapConvention->subPeriodsCouponType(), pillarChoice(segment->pillarChoice()),
+                Date(), basisSwapConvention->isPayAveraged(), basisSwapConvention->isRecAveraged());
 
             instruments.push_back({helper, mainPillarDate(segment->pillarChoice(), helper->pillarDate()),
                                    additionalPillarDates(segment->pillarChoice(), helper->earliestDate()),
