@@ -377,6 +377,11 @@ XMLNode* GenericYieldVolatilityCurveConfig::toXML(XMLDocument& doc) const {
         }
         XMLUtils::addChild(doc, node, "Extrapolation", extr_string);
 
+        if (interpolation_ != Interpolation::Linear) {
+            std::string interp_string = to_string(static_cast<QuantExt::SabrParametricVolatility::ModelVariant>(interpolation_));
+            XMLUtils::addChild(doc, node, "Interpolation", interp_string);
+        }
+
         XMLUtils::addChild(doc, node, "DayCounter", to_string(dayCounter_));
         XMLUtils::addChild(doc, node, "Calendar", to_string(calendar_));
         XMLUtils::addChild(doc, node, "BusinessDayConvention", to_string(businessDayConvention_));
